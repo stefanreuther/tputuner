@@ -54,19 +54,22 @@ TAction check_jump(CInstruction* p)
     if(!p->next || p->next->insn != I_JMPN || p->next->args[0]->type != CArgument::LABEL)
         return A_BAD;
     
-    if(p->args[0]->label != p->next->next)
-        return A_BAD;
+    if(p->args[0]->label == p->next->next) {
+        /* inverse conditional jump */
 
-    /* kann die Kette entfernt werden? */
-    int distance = p->next->args[0]->label->ip - p->ip;
-    if((distance > -123 && distance < 127) || do_386) {
-        /* ja! */
-        CInstruction* n = p->next;
-        n->insn = I_JCC;
-        n->param = p->param ^ 1;
+        /* kann der Sprung umgedreht werden? */
+        int distance = p->next->args[0]->label->ip - p->ip;
+        if((distance > -123 && distance < 127) || do_386) {
+            /* ja! */
+            CInstruction* n = p->next;
+            n->insn = I_JCC;
+            n->param = p->param ^ 1;
+            return A_DELETE;
+        }
+    } else if(*p->args[0] == *p->next->args[0]) {
+        /* Zwei Sprünge - eine Meinung */
         return A_DELETE;
     }
-
     return A_BAD;
 }
 
@@ -125,6 +128,35 @@ TAction check_zerotest(CInstruction* p)
         delete in;
 
         return A_RESCAN;
+    }
+    return A_BAD;
+}
+
+/*
+ *  Nulltest gefolgt von `jnb' oder `jb'
+ */
+TAction check_zerotest_jb(CInstruction* p)
+{
+    if(((p->insn==I_AND || p->insn==I_OR) && *p->args[0]==*p->args[1])
+       || p->insn==I_CMP && p->args[1]->is_immed(0)) {
+        CInstruction* n = p->next;
+        if(n->insn==I_JCC && (n->param==3 || n->param==2)) {
+            /* Nulltest + jb/jnb */
+            if(n->param == 3) {
+                /* jnb -> jmp */
+                n->insn = I_JMPN;
+            } else {
+                /* jb -> löschen */
+                p->next = n->next;
+                delete n;
+            }
+            return A_RESCAN;
+        } else if(n->insn==I_JMPN) {
+            /* Nulltest + jmp */
+            if(flag_check(n->args[0]->label->next))
+                /* Nulltest löschen */
+                return A_DELETE;
+        }
     }
     return A_BAD;
 }
@@ -397,6 +429,7 @@ TAction (*functions[])(CInstruction* i) = {
     check_jump,
     check_cmp,
     check_zerotest,
+    check_zerotest_jb,
     check_smalladd,
     check_mov,
     check_xchg,

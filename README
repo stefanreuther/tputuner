@@ -156,6 +156,9 @@ Optimierungen
 
 * Datenfluß-Analyse (--data-flow-analysis)
 
+  Wahrscheinlich währe der richtige Name `reload optimisation', aber
+  hier werden doch einige Daten durch's Programm verfolgt...
+
   Eliminiert überflüssige Lade-Befehle. Diese kommen recht häufig vor, 
   da Turbo Pascal selbst keine Befehls-übergreifenden Optimierungen
   vornimmt. Beispiel:
@@ -218,12 +221,9 @@ Optimierungen
   zu
 		jmp	two
   reduziert. Das kommt zum Beispiel bei der üblichen Konstruktion
-         REPEAT
-           GetEvent(E);
-           CASE E.Typ OF
-             ...
-           END;
-         UNTIL FALSE;
+         IF foo THEN
+           IF bar THEN qux ELSE frob
+         ELSE fred;
   recht häufig vor. Diese Optimierung sollte immer sicher
   sein. Allerdings werden die in Assembler beliebten `jmp $+2'-Ketten
   wegoptimiert. Das ist hoffentlich kein Problem, da diese üblicher-
@@ -236,7 +236,7 @@ Optimierungen
   Ersetzt komplexe Befehle durch einfachere. Das ist eine Art `Suchen
   und Ersetzen' und sollte mit TP-Code sicher sein. Hier werden die
   Befehle einzeln in einem Umfeld von nicht mehr als 2 oder 3 anderen
-  Befehlen betrachtet, daher das Guckloch. Ein Beispiel ist hier
+  Befehlen betrachtet, daher ``Guckloch''. Ein Beispiel ist hier
 		cmp	ax, 0
   wird zu
 		or	ax, ax
@@ -257,7 +257,7 @@ Optimierungen
 
   Eigentlich sollte diese Optimierung auch einen Stackrahmen
   entfernen, wenn dieser nicht benutzt wird. Das ist jedoch
-  problematisch mit eingschachtelten Prozeduren und Destruktoren, und
+  problematisch mit eingeschachtelten Prozeduren und Destruktoren, und
   außerdem selten anwendbar - es ist den Ärger nicht wert.
 
   Diese Optimierung wird für das Vorziehen von Sprüngen (--early-jump) 
@@ -289,6 +289,20 @@ Optimierungen
   Diese Optimierung ist bei jeder Art Bedingungen (IF-THEN-ELSE, CASE) 
   interessant, da sie oft große Gemeinsamkeiten finden kann, speziell, 
   wenn Strings oder Longints beteiligt sind.
+
+  TPUTUNER erkennt zwei Blöcke auch dann als gleich, wenn sie sich
+  in einem Befehl unterscheiden, den TPUTUNER korrigieren kann.
+		cmp	ax,1
+		jne	skip
+		mov	[xxx],2
+		jmp	done
+	skip:	mov	[xxx],ax
+	done:
+  wird zu
+		cmp	ax,1
+		jne	skip
+		mov	ax,2
+	skip:	mov	[xxx],ax
 
 
 * Sprünge verzögern (--late-jump)
@@ -362,15 +376,17 @@ Optimierungen
   über das Programm.
 
   Variablen eliminieren: ist nicht möglich. TPUTUNER erhält alle
-  Befehle, die Daten in den Hauptspeicher legen. TPUTUNER kann jedoch
-  nicht erkennen, welche Variablen einzeln und welche als Komponenten
+  Befehle, die Daten in den Hauptspeicher legen. TPUTUNER kann nicht
+  erkennen, welche Variablen einzeln und welche als Komponenten
   eines Record/Array angesprochen werden. Wenn in
                 a.Feld1 := 1;
                 fiddle(a);
   der Schreibzugriff auf a als unnütz entfernt würde (das Feld wird
   nirgends mehr gelesen), wäre das fatal. Eine Ausnahme ist die Ent-
   fernung von Schreibzugriffen in den Stackrahmen am Ende einer
-  Funktion - diese Variablen sind eh nicht mehr erreichbar.
+  Funktion - diese Variablen sind eh nicht mehr erreichbar. TPUTUNER
+  kann stellenweise die implizite @Result-Variable komplett
+  eliminieren.
 
   Common Subexpression Elimination (CSE): derzeit noch nicht möglich.
 
@@ -393,8 +409,8 @@ Optimierungen
   hoffentlich schon vorher durch Befehle, die tputuner nicht kennt
   (in/out, lodsb, movsb, cli, ...) und somit in Ruhe läßt. Wenn die
   Daten im Beispiel zu --remove-unused-code z.B. ungültige Befehle
-  enthalten (db 'PSQR' ist eine Folge PUSH Befehle), werden sie von
-  TPUTUNER nicht angefaßt.
+  enthielten (``db "PSQR"'' ist eine Folge PUSH Befehle), werden sie
+  von TPUTUNER nicht angefaßt.
 
   Um sicher zu sein, kann man ja die Datenfluß-Analyse abschalten
   (--no-data-flow-analysis, -D), damit gehen aber die meisten
@@ -411,7 +427,7 @@ Ergebnisse
   oder ähnliches durch.
 
   Beispiel-Ergebnis: Ein größeres Programmprojekt (40 KLOC), optimiert
-  wurde nur der `produktive Teil', nicht die Grafikbibliothek (weitere
+  wurde nur der `produktive Teil', nicht die Laufzeitbibliothek (weitere
   5 KLOC).
 
   Normaler Turbo Pascal Code:
@@ -503,7 +519,7 @@ Debuglistings
          \            \_ Ziel = Label (derzeit an Offset 38hex)
           \_ Bedingter Sprung mit Condition Code (jcc`c' == jl, Opcode 7Ch),
              auch bei setcc (setcc`c' == setl, Opcode 0Fh 9Ch).
-  38:  label`1'
+  38:  label`1'  <38>
    \          \_ Bei Labels: Referenzzähler (hex) = wieviel Sprünge
     \            verweisen auf dieses Label
      \_ Adresse (Hex)

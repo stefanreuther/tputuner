@@ -369,19 +369,56 @@ void early_jumps(CInstruction* insn)
                 here = here->prev;
             }
 
+            /* wenn die insn sich nur im Quelloperanden unterscheiden:
+             *   here --->   mov   [foo],3
+             *   there --->  mov   [foo],ax
+             * ändern in
+             *   here --->   mov   ax,3
+             *               JMP
+             *   there -->   LABEL
+             *               mov   [foo],ax */
+            bool renamed = false;
+            if(here && there && here->prev && there->prev
+               && here->insn == there->insn &&
+               (here->opsize == there->opsize || !here->opsize || !there->opsize)
+               && here->args[0] && here->args[1]
+               && there->args[0] && there->args[1]
+               && *(here->args[0]) == *(there->args[0])
+               && (here->insn != I_IMUL || here->args[3]==0)
+               && (there->insn != I_IMUL || there->args[3]==0)
+               && here->args[1]->type == CArgument::IMMEDIATE
+               && (there->args[1]->is_word_reg() || there->args[1]->is_byte_reg())) {
+                /* Übereinstimmung */
+                delete here->args[0];
+                here->args[0] = new CArgument(*there->args[1]);
+                here->insn = I_MOV;
+                there = there->prev;
+                renamed = changed = true;
+            }
+                
             /* wir konnten was löschen */
-            if(here && there && (here != insn->prev)) {
+            if(here && there && (renamed || (here != insn->prev))) {
                 /* here ist der letzte zu erhaltende Befehl */
                 /* wir springen hinter there */
+
+                /* here --->   insn
+                               JMP */
+                /* there -->   insn
+                               LABEL */
+
                 CInstruction* label;
                 if(there->next->insn != I_LABEL) {
-                    /* label erzeugen */
-                    label = new CInstruction(I_LABEL);
-                    label->ip = there->next->ip;
-                    label->next = there->next;
-                    label->prev = there;
-                    label->next->prev = label;
-                    there->next = label;
+                    if(there->insn == I_LABEL)
+                        label = there;
+                    else {
+                        /* label erzeugen */
+                        label = new CInstruction(I_LABEL);
+                        label->ip = there->next->ip;
+                        label->next = there->next;
+                        label->prev = there;
+                        label->next->prev = label;
+                        there->next = label;
+                    }
                 } else {
                     label = there->next;
                 }
