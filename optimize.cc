@@ -205,8 +205,13 @@ CCWCounter* recalc_offsets(CInstruction* insn)
 void write_file(int id, int pass, CInstruction* insn)
 {
     char filename[100];
+    
+#ifdef __MSDOS__
+    sprintf(filename, "block%x.p%d", id, pass);
+#else
     sprintf(filename, "block%x.pass%d", id, pass);
-
+#endif
+            
     ofstream f(filename);
 
     while(insn) {
