@@ -14,3 +14,4 @@ bool do_size = false;        // Auf Größe optimieren
 bool do_386 = false;         // 386er Code?
 bool do_early_jmp = true;    // Sprünge vorziehen
 bool do_late_jmp = true;     // Sprünge nach hinten ziehen
+bool do_reg_alloc = false;   // Register-Allokierung

@@ -31,6 +31,7 @@ Aufruf
   -u, --remove-unused-code
   -e, --early-jump
   -l, --late-jmp
+  -r, --reg-alloc
        Legen die Art der Optimierung fest. Standardmäßig sind die
        Optionen eingeschaltet, ausgeschaltet werden sie mit `-A'
        (Großbuchstaben für kurze Optionen) bzw. `--no-data-flow-
@@ -99,8 +100,8 @@ Meldungen während des Ablaufs
 
 `Unrecognized opcode xx'
   Der Codeblock enthielt einen Befehl, den TPUTUNER nicht kennt. Das
-  sind z.B. die 386-Befehle, `xchg', `test', Flag-Befehle, Port-I/O
-  und String-Befehle.
+  sind z.B. die 386-Befehle, `test', Flag-Befehle, Port-I/O und String-
+  Befehle.
 
 `Warning: code block contains bad relocation entries'
   Der Codeblock enthielt einen Relozierungs-Eintrag, den TPUTUNER
@@ -156,7 +157,7 @@ Optimierungen
 
 * Datenfluß-Analyse (--data-flow-analysis)
 
-  Wahrscheinlich währe der richtige Name `reload optimisation', aber
+  Wahrscheinlich wäre der richtige Name `reload optimisation', aber
   hier werden doch einige Daten durch's Programm verfolgt...
 
   Eliminiert überflüssige Lade-Befehle. Diese kommen recht häufig vor, 
@@ -172,7 +173,8 @@ Optimierungen
   TPUTUNER streicht das zweite LES.
 
   Diese Optimierung ist für durchschnittlichen Turbo Pascal Code recht 
-  sicher, obwohl sich schicke Fehler-Situationen konstruieren lassen:
+  sicher, obwohl sich schicke Fehler-Situationen konstruieren lassen,
+  Stichwort `Aliasing':
         p := @a;
         a := b + 1;
         inc(p^);
@@ -250,7 +252,7 @@ Optimierungen
   mit schlimmen Assembler-Hacks:
 		call	foo
 		jmp	skip            { short jump }
-		db	'PSQR'
+		db	'PSQR'          { Römische Legion }
 	 foo:	pop	bx		{ Rückkehradresse }
 		mov	al,cs:[bx+2] 	{ erstes Datenbyte }
   Hier werden die Daten als unreferenziert entfernt.
@@ -351,6 +353,36 @@ Optimierungen
   evtl. später noch gebraucht wird.
 
 
+* Register-Allokierung (--reg-alloc)
+
+  Diese Optimierung veranlaßt TPUTUNER dazu, häufig benötigte Werte oder
+  Adressen in Registern abzulegen. Vorteile entstehen hier z.B. bei der
+  Initialisierung von Datensätzen:
+		var1 := 7;
+		var2 := 7;
+		var3 := 7;
+  wird von Turbo Pascal zu
+		mov	[var1],7
+		mov	[var2],7
+		mov	[var3],7
+  und von TPUTUNER zu
+		mov	cx,7
+		mov	[var1],cx
+		mov	[var2],cx
+		mov	[var3],cx
+  Letztere Sequenz ist kürzer (von der Codegröße her) und nicht unbedingt
+  langsamer (da weniger Speichertransfers und in anderen Konstellationen
+  als im Beispiel u.U. besser parallelisierbar). Diese Optimierung kann
+  nur innerhalb eines `basic blocks' stattfinden, was eine Codesequenz
+  ist, die durch Labels und/oder Sprünge in andere Funktionen begrenzt
+  ist.
+
+  Diese Optimierung ist standardmäßig deaktiviert, da sie sehr zeitauf-
+  wendig ist. Da sie stellenweise Ergebnisse der DFA rückgängig macht (und
+  dabei *immer* bessere Ergebnisse liefert), kann sie nur angewendet
+  werden, wenn die DFA keine Änderungen mehr bringt.
+
+
 * Nutzung von 386er-Befehlen (--386)
 
   Mit dieser Optimierung nutzt TPUTUNER Befehle des 386ers zur Optimie-
@@ -369,11 +401,6 @@ Optimierungen
 
   Vorausberechnung von Konstanten: das sollte der Turbo Pascal
   Compiler im Rahmen seiner Möglichkeiten getan haben.
-
-  Register umbelegen: Auch wenn Turbo Pascal z.B. das CX-Register sehr 
-  selten nutzt, hält sich TPUTUNER an die `vorgegebenen' Register-
-  werte. Um Register umzubelegen, bräuchte TPUTUNER mehr Informationen
-  über das Programm.
 
   Variablen eliminieren: ist nicht möglich. TPUTUNER erhält alle
   Befehle, die Daten in den Hauptspeicher legen. TPUTUNER kann nicht

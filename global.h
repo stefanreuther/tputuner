@@ -15,4 +15,5 @@ extern bool do_size;         // Auf Größe optimieren
 extern bool do_386;          // 386er Code erlauben?
 extern bool do_early_jmp;    // Sprünge vorziehen
 extern bool do_late_jmp;     // Sprünge nach hinten ziehen
+extern bool do_reg_alloc;    // Register-Allokierung
 #endif

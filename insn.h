@@ -22,6 +22,7 @@ extern char reg_values[];
 extern TRegister bases[8];
 extern TRegister index[8];
 extern TRegister def_seg[8];
+extern char* reg_names[];
 
 /*** Relozierung ***/
 struct CRelo {
@@ -61,6 +62,8 @@ public:
     bool is_immed(int i) { return type==IMMEDIATE && !reloc && immediate==i; }
     bool is_reg(TRegister r) { return type==REGISTER && reg==r; }
     bool uses_reg(TRegister r);
+    bool uses_reg_part(TRegister r);
+    bool affects_reg(TRegister r);
 
     void write_immed(CCodeWriter& c);
     void write_rm(CCodeWriter& c, int opc, int reg, bool with_seg=true, int prefix=0);
@@ -105,7 +108,7 @@ public:
     CInstruction* next;
     CInstruction* prev; // nur für die Datenflußanalyse
     CArgument* args[3];
-    int opsize;
+    int opsize;        // Label: 0=unsicher, 1=sicher
     int param;         // optionaler Parameter (cc bei jcc-Sprüngen, Referenzzähler bei Labels
     int ip;
     int temp;
@@ -124,5 +127,7 @@ public:
 
     bool operator==(const CInstruction& i) const;
 };
+
+bool alias_reg(TRegister modify, TRegister keep);
 
 #endif

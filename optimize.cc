@@ -15,6 +15,7 @@
 #include "dfa.h"
 #include "global.h"
 #include "peephole.h"
+#include "regalloc.h"
 
 bool changed;
 
@@ -25,7 +26,7 @@ bool changed;
  */
 CInstruction* remove_unused_code(CInstruction* insn)
 {
-    bool used_bp = false;
+//    bool used_bp = false;
     CInstruction* insn0 = insn;
     CInstruction* prev = 0;
 
@@ -455,6 +456,7 @@ CNewCode* do_optimize(int id,
     int exit_counter = 2;
     CCWCounter* w = 0;
 
+    int status = 0;
     do {
 	delete w;
 	changed = false;
@@ -469,8 +471,10 @@ CNewCode* do_optimize(int id,
 	    reduce_redundant_jumps(insn);
 	if(do_remunused)
 	    insn = remove_unused_code(insn);
-	if(do_dfa)
+	if(do_dfa && status==0)
 	    data_flow_analysis(insn);
+        if(do_reg_alloc && status==1)
+            register_allocation(insn);
 	if(do_peephole)
 	    insn = peephole_optimization(insn);
         insn->ip = my_offset;
@@ -478,7 +482,12 @@ CNewCode* do_optimize(int id,
 	cout << pass << (changed?"! ":" ") << flush;
 	if(changed) exit_counter=2;
 	else exit_counter--;
-    } while(exit_counter>0);
+        if(exit_counter <= 0) {
+            status++;
+            if(status < 2)
+                exit_counter = 1;
+        }
+    } while(exit_counter > 0);
     if(code_size < w->bytes) {
 	cout << "Warning: new code got bigger - code block unchanged" << endl;
 	return 0;
