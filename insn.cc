@@ -14,6 +14,7 @@
 #include "codewriter.h"
 #include "assemble.h"
 #include "global.h"
+#include "tpufmt.h"
 
 TRegister bases[8] = { rBX, rBX, rBP, rBP, rSI, rDI, rBP, rBX };
 TRegister index[8] = { rSI, rDI, rSI, rDI, rNONE, rNONE, rNONE, rNONE };
@@ -877,4 +878,16 @@ bool alias_reg(TRegister modify, TRegister keep)
      default:
         return false;
     }
+}
+
+extern int sys_unit_offset;  /* tputuner.cc */
+
+bool is_call_to (CArgument* a, int index)
+{
+    if (!a || a->type != CArgument::IMMEDIATE)
+        return false;
+
+    register CRelo* r = a->reloc;
+    return r && r->unitnum==sys_unit_offset && r->rtype==CODE_PTR_REF
+        && r->rblock == index && r->rofs == 0;
 }
