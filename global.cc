@@ -1,7 +1,7 @@
 /*
  *  Globale Optionen für tputuner
  *
- *  (c) copyright 1998 by Stefan Reuther
+ *  (c) copyright 1998,1999,2000 by Stefan Reuther
  */
 #include "global.h"
 
