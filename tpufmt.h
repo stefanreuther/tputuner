@@ -103,6 +103,7 @@ enum {
     OFS_SRC_NAME      = 0x18,
     OFS_LINE_LENGTHS  = 0x1C,     /* different from here */
     SYM_SIZE          = 0x1E,
+    BROWSER_SIZE      = 0x20,     /* This one's new */
     CODE_SIZE         = 0x22,
     CONST_SIZE        = 0x24,
     RELOC_SIZE        = 0x26,

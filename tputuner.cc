@@ -207,6 +207,15 @@ int roundup(int n)
     return ((n-1) | 15) + 1;
 }
 
+static inline int browser_size()
+{
+#if UNIT_FORMAT == 7
+    return roundup(get_word(BROWSER_SIZE));
+#else
+    return 0;
+#endif
+}
+
 /*
  *  Liest eine Symbolliste aus der Unit
  */
@@ -283,7 +292,7 @@ void create_objects()
     // die Code-Blocks
     int codeblock_ofs = get_word(OFS_CODE_BLOCKS);
     int codeblock_limit = get_word(OFS_CONST_BLOCKS);
-    int code_base     = roundup(get_word(SYM_SIZE));
+    int code_base     = roundup(get_word(SYM_SIZE)) + browser_size();
     int relo_base     = code_base + roundup(get_word(CODE_SIZE)) + roundup(get_word(CONST_SIZE));
 
     int id = 0;
@@ -325,7 +334,8 @@ void write_new_file(char* name)
     /* unveränderte Teile */
     new_size = roundup(get_word(SYM_SIZE))
 	+ roundup(get_word(CONST_SIZE))
-	+ roundup(get_word(CONST_RELOC_SIZE));
+	+ roundup(get_word(CONST_RELOC_SIZE))
+        + browser_size();
     /* Code */
     for(i = code_list.begin(); i!=code_list.end(); i++) {
 	if((**i).new_code) new_size += (**i).new_code->code_size;
@@ -344,7 +354,7 @@ void write_new_file(char* name)
 
     /* Neue Unit erstellen*/
     /* Header */
-    for(int m=roundup(get_word(SYM_SIZE)); m>0; m--)
+    for(int m=roundup(get_word(SYM_SIZE))+browser_size(); m>0; m--)
 	*code_ptr++ = *u_ptr++;
 
     /* Code */
@@ -373,7 +383,8 @@ void write_new_file(char* name)
 
     /* nun die CONST blocks verschieben */
     char* const_ptr = unit + roundup(get_word(SYM_SIZE))
-	                   + roundup(get_word(CODE_SIZE));
+	                   + roundup(get_word(CODE_SIZE))
+                           + browser_size();
 
     for(int j=roundup(get_word(CONST_SIZE)); j>0; j--)
 	*code_ptr++ = *const_ptr++;
@@ -406,7 +417,8 @@ void write_new_file(char* name)
     const_ptr = unit + roundup(get_word(SYM_SIZE))
 	             + roundup(get_word(CODE_SIZE))
 	             + roundup(get_word(CONST_SIZE))
-	             + roundup(get_word(RELOC_SIZE));
+	             + roundup(get_word(RELOC_SIZE))
+                     + browser_size();
 
     for(int ii=roundup(get_word(CONST_RELOC_SIZE)); ii>0; ii--)
 	*code_ptr++ = *const_ptr++;
@@ -418,7 +430,8 @@ void write_new_file(char* name)
     int n_size = code_ptr - new_unit;
     int n_size_1 = roundup(nget_word(SYM_SIZE))
 	+ roundup(nget_word(CODE_SIZE)) + roundup(nget_word(CONST_SIZE))
-	+ roundup(nget_word(RELOC_SIZE)) + roundup(nget_word(CONST_RELOC_SIZE));
+	+ roundup(nget_word(RELOC_SIZE)) + roundup(nget_word(CONST_RELOC_SIZE))
+        + browser_size();
 
     if(new_size != n_size) {
 	cout << "Size mismatch error #1!" << endl;
@@ -428,6 +441,8 @@ void write_new_file(char* name)
     cout << "Length according to pointers: " << n_size << endl;
     cout << "Length according to header:   " << n_size_1 << "  (Code: " << code_size << ")" << endl;
     cout << "Original size:                " << unit_size << "  (Code: " << get_word(CODE_SIZE) << ")" << endl;
+    if (browser_size())
+        cout << "NOTE: " << browser_size() << " bytes of browser information present\n";
     if(n_size != n_size_1) {
 	cout << "Size mismatch error!" << endl;
 	return;
