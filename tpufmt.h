@@ -1,6 +1,20 @@
+/*
+ *  tputuner - Ein Programm zur Optimierung von Turbo-Pascal Code
+ *
+ *  (c) copyright 1998,1999,2000 by Stefan Reuther
+ *
+ *  Definitionen zum TPU-Format.
+ *
+ *  Siehe: INTRFC 7.0
+ *    Public Domain by Milan Dadok.
+ *    basiert auf einem Program von DJ Murdoch
+ */
 #ifndef TPU_FORMAT_H
 #define TPU_FORMAT_H
 
+#define UNIT_ID "TPU9"
+
+/* Offsets im Unit-Header; head.pas */
 enum {
     OFS_THIS_UNIT     = 0x08,
     OFS_HASHTABLE     = 0x0A,
@@ -54,10 +68,14 @@ enum {
 */
 
 enum {
+    /* Blocknummern */
     SYS_LONG_SQR = 0x50,        /* in: dx:ax=value  out: dx:ax=value^2 */
     SYS_LONG_MUL = 0x28,        /* in: dx:ax=a, cx:bx=b  out: dx:ax=a*b */
+    SYS_SLOAD    = 0x58,        /* in: push dest, push src  out: src popped */
 
-    CODE_PTR_REF = 0x30
+    /* Typen */
+    CODE_PTR_REF = 0x30,        /* 4-byte pointer */
+    CODE_OFS_REF = 0x50         /* 2-byte offset */
 };
 
 #endif

@@ -17,10 +17,12 @@
 #include "optimize.h"
 #include "dfa.h"
 
-#define IFDEBUG if(debugflag)
+//#define IFDEBUG if(debugflag)
+//bool debugflag = 0;
+#define IFDEBUG if(0)
 
-bool debugflag = 0;
-
+/* Registerbeeinflussung updaten (Byteregister beeinflussen ihre
+   Hauptregister, und andersrum) */
 void OperandSet::fix_regs()
 {
 #define DREG(name,hi,lo)               \
@@ -38,11 +40,15 @@ void OperandSet::fix_regs()
     regs &= ~(1 << rNONE);
 }
 
+/* konservative Form von fix_regs: ein Register zählt nicht als
+   überschrieben, wenn nur ein Teil überschrieben wurde */
 void OperandSet::fix_regs_conservative()
 {
-#define DREG(name,hi,lo)               \
-    if(regs & (1 << name))             \
-        regs |= (1 << hi) | (1 << lo); \
+#define DREG(name,hi,lo)                                        \
+    if(regs & (1 << name))                                      \
+        regs |= (1 << hi) | (1 << lo);                          \
+    if((regs & ((1 << hi)|(1 << lo))) == ((1 << hi)|(1 << lo))) \
+        regs |= (1 << name);
 
     DREG(rAX, rAH, rAL);
     DREG(rBX, rBH, rBL);
@@ -53,6 +59,7 @@ void OperandSet::fix_regs_conservative()
     regs &= ~(1 << rNONE);
 }
 
+/* Operand /a/ aufnehmen */
 void OperandSet::add_op(CArgument* a)
 {
     if(!a)
@@ -81,6 +88,7 @@ void OperandSet::add_op(CArgument* a)
     }
 }
 
+/* true wenn Speicherargument /a/ enthalten */
 bool OperandSet::contains_arg(CArgument* a)
 {
     for(vector<CArgument*>::iterator j = mem.begin(); j != mem.end(); ++j)
@@ -89,6 +97,7 @@ bool OperandSet::contains_arg(CArgument* a)
     return false;
 }
 
+/* true wenn p eine Trennung zw. basic blocks ist */
 bool is_break(CInstruction* p)
 {
     switch(p->insn) {
@@ -102,6 +111,7 @@ bool is_break(CInstruction* p)
     }
 }
 
+/* Abhängigkeiten von Befehl p berechnen */
 void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
 {
     switch(p->insn) {
@@ -262,7 +272,8 @@ void merge_os(OperandSet& a, const OperandSet& b)
 
 /* Abhängigkeiten berechnen
    intelligentere Version
-   erzeugte Werte stehen nicht unter /in/ */
+   erzeugte Werte stehen nicht unter /in/
+   (e.g., bei mov ax,3 / add ax,2 ist ax kein Eingaberegister) */
 void compute_dependencies_int(OperandSet& in, OperandSet& out,
                               CInstruction* p, CInstruction* end)
 {
@@ -315,9 +326,6 @@ bool try_cse(CInstruction* a1, CInstruction* a2)
        <codeB> == [b,a2)
        <codeA> == [a2,a2end) */
 
-    if(a1->ip == 0x16c)
-        cout << "found\n";
-
     while(1) {
         OperandSet codea_read, codea_write;
         OperandSet codeb_read, codeb_write;
@@ -333,7 +341,6 @@ bool try_cse(CInstruction* a1, CInstruction* a2)
             /* wenn die Flags egal sind ... */
             if(codea_write.flags && codeb_write.flags
                && !codeb_read.flags && !codea_read.flags && flag_check(a2end)) {
-                cout << "FLAGHACK";
                 codea_write.flags = codeb_write.flags = false;
             }
             if(check_dependencies(codea_read, codea_write)
@@ -352,10 +359,9 @@ bool try_cse(CInstruction* a1, CInstruction* a2)
         a2end = a2end->next;
     }
 
-    if(a1->ip == 0x16c)
-        cout << "kickme\n";
     if(maxb) {
         /* wir können was löschen */
+#if 0
         cout << endl << endl << "<<< CSE Result >>>" << endl;
 
         for(CInstruction* i = a1; i != maxb; i = i->next) {
@@ -371,6 +377,7 @@ bool try_cse(CInstruction* a1, CInstruction* a2)
             i->print(cout);
         }
         cout << endl << endl;
+#endif
 
         /* löschen */
         CInstruction* p = a1;
@@ -392,8 +399,6 @@ CInstruction* do_cse_once(CInstruction* insn)
 {
     /* insn == Anfang Code A */
     CInstruction* a2 = insn->next;
-//     if(insn->ip > 0x100)
-//         insn->print(cout);
     if(is_break(insn))
         return insn->next;
     while(a2) {
@@ -418,5 +423,4 @@ void do_cse(CInstruction* insn)
         else
             insn = i;
     }
-//    return insn;
 }

@@ -1,7 +1,7 @@
 /*
  *  "Datenflußanalyse" für tputuner
  *
- *  (c) copyright 1998 by Stefan Reuther
+ *  (c) copyright 1998,1999,2000 by Stefan Reuther
  *
  *  Der Code wird analysiert und Ladebefehle protokolliert. Wenn
  *  Werte mehrfach geladen werden, wird der Original-Ladebefehl
@@ -826,7 +826,10 @@ void optimize_pop(CInstruction* insn)
 	delete v;
     } else {
 	delete pop_value();
-	use_mem(insn->args[0]);
+        if(insn->args[0]->type == CArgument::REGISTER)
+            set_unknown(insn->args[0]->reg, true);
+        else
+            use_mem(insn->args[0]);
     }
 }
 
@@ -1203,7 +1206,6 @@ void optimize_mul(CInstruction* insn)
         insn->args[0] = 0;
         set_unknown(rDX, true);
         changed = true;
-        cout << "<foo>";
         return;
     }
     optimize_argument(insn->opsize, insn->args[0], false);

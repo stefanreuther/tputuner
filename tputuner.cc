@@ -1,7 +1,7 @@
 /*
  *  tputuner - Ein Programm zur Optimierung von Turbo-Pascal Code
  *
- *  (c) copyright 1998 by Stefan Reuther
+ *  (c) copyright 1998,1999,2000 by Stefan Reuther
  *
  *  Hauptmodul. Hier wird die Unit geladen, die Code-, Entry- und
  *  Relocation-Einträge geladen und zugeordnet, und schließlich
@@ -24,6 +24,7 @@ char* new_unit;    // Neue Unit
 int new_size;      // Neue Größe
 
 int ofs_this_unit = 0; // Offset, unter dem diese Unit referenziert wird
+int ref_this_unit = 0;
 int sys_unit_offset = 0;
 
 bool do_names = true;  // Namen lesen?
@@ -132,7 +133,7 @@ void CCodeBlock::optimize()
     /* Optimieren */
     try {
 	new_code = do_optimize(id,
-			       unit + code_ofs + entry->entry_ofs, code_size - entry->entry_ofs,
+			       unit + code_ofs /*+ entry->entry_ofs*/, code_size - entry->entry_ofs,
 			       entry->entry_ofs,
 			       unit + relo_ofs, relo_count);
 
@@ -182,13 +183,13 @@ bool load_unit(char* filename)
     fread(unit, 1, unit_size, fp);
     fclose(fp);
 
-    if(unit[0]!='T' || unit[1]!='P' || unit[2]!='U' || unit[3]!='9') {
-	cout << "Error: not a `TPU9' file" << endl;
+    if(strncmp(unit, UNIT_ID, 9) != 0) {
+	cout << "Error: not a `" UNIT_ID "' file" << endl;
 	delete[] unit;
 	return false;
     }
 
-    ofs_this_unit = get_word(OFS_THIS_UNIT) + 2;
+    ref_this_unit = ofs_this_unit = get_word(OFS_THIS_UNIT) + 2;
     if(unit[ofs_this_unit] != 89) {
         cout << "Error: Can't find internal name of unit" << endl;
         delete[] unit;

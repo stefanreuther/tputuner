@@ -24,7 +24,7 @@ depend:
 
 assemble.o: assemble.h codewriter.h insn.h
 codewriter.o: codewriter.h insn.h
-cse.o: cse.h insn.h codewriter.h
+cse.o: cse.h insn.h codewriter.h optimize.h global.h dfa.h
 dfa.o: insn.h codewriter.h dfa.h optimize.h global.h
 disassemble.o: insn.h codewriter.h disassemble.h global.h
 global.o: global.h
@@ -32,6 +32,7 @@ insn.o: insn.h codewriter.h assemble.h global.h
 optimize.o: optimize.h global.h insn.h codewriter.h disassemble.h dfa.h
 optimize.o: peephole.h regalloc.h cse.h
 peephole.o: insn.h codewriter.h peephole.h dfa.h optimize.h global.h tpufmt.h
+peephole.o: cse.h
 regalloc.o: regalloc.h insn.h codewriter.h optimize.h global.h
 strcomb.o: strcomb.h global.h insn.h codewriter.h
 tputuner.o: tpufmt.h optimize.h global.h strcomb.h

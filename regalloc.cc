@@ -1,13 +1,13 @@
 /*
  *  Registerallokierung für tputuner
  *
- *  (c) copyright 1999 by Stefan Reuther
+ *  (c) copyright 1999,2000 by Stefan Reuther
  */
 #include "regalloc.h"
 #include "optimize.h"
 
 #define GLOBAL_ALLOC
-/* für globale Register Allocation, noch nicht fertig ... */
+/* für globale Register Allocation */
 
 struct TEstimate {
     TEstimate* next;
@@ -117,7 +117,7 @@ TEstimate* get_estimation(CArgument* a)
  *
  *  have_modrm: ein modrm ist schon vorhanden
  */
-TEstimate* estimate_read(CArgument* p, bool sex, bool have_modrm)
+TEstimate* estimate_read(CArgument* p, bool sex, bool have_modrm, bool znd)
 {
     TEstimate* e;
     switch(p->type) {
@@ -144,6 +144,8 @@ TEstimate* estimate_read(CArgument* p, bool sex, bool have_modrm)
             e->save_if_value--;
         if(!have_modrm)
             e->save_if_value--;
+        if(znd)
+            e->save_if_value--;
         e->save_if_value += 2;
         return e;
     }
@@ -153,9 +155,9 @@ TEstimate* estimate_read(CArgument* p, bool sex, bool have_modrm)
 /*
  *  Schreibzugriff auf Wert /p/ bewerten (Abschätzen der Ersparnisse)
  */
-void estimate_write(CArgument* p)
+void estimate_write(CArgument* p, bool znd)
 {
-    TEstimate* e = estimate_read(p, false, true);
+    TEstimate* e = estimate_read(p, false, true, znd);
     
     if(e)
         e->may_value = false;
@@ -175,8 +177,10 @@ void clear_estimates()
 
 /*
  *  Abschätzen der Ersparnisse für Befehl /insn/
+ *  znd = true, wenn dieser Befehl mit dem vorigen Befehl zusammen
+ *  als 32bit-Operation codiert ist (Ersparnis ist dann geringer)
  */
-void estimate_insn(CInstruction* insn)
+void estimate_insn(CInstruction* insn, bool znd)
 {
     switch(insn->insn) {
      case I_DEC: case I_INC: case I_NOT: case I_NEG: case I_POP:
@@ -184,31 +188,31 @@ void estimate_insn(CInstruction* insn)
      case I_ROR: case I_ROL: case I_RCL: case I_RCR:
      case I_SHL: case I_SHR: case I_SAR:
         /* Befehle mit einem Zieloperanden */
-        estimate_write(insn->args[0]);
+        estimate_write(insn->args[0], znd);
         break;
      case I_PUSH:
      case I_IDIV: case I_MUL: case I_DIV:
         /* Befehle mit einem Quelloperanden */
-        estimate_read(insn->args[0], true, true);
+        estimate_read(insn->args[0], true, true, znd);
         break;
      case I_ADD: case I_OR: case I_ADC: case I_SBB:
      case I_AND: case I_SUB: case I_XOR:
         /* Ein Quell, ein Zieloperand */
-        estimate_read(insn->args[1], !insn->args[0]->is_reg(rAX), !insn->args[0]->is_reg(rAX));
-        estimate_write(insn->args[0]);
+        estimate_read(insn->args[1], !insn->args[0]->is_reg(rAX), !insn->args[0]->is_reg(rAX), znd);
+        estimate_write(insn->args[0], znd);
         break;
      case I_CMP:
         /* Zwei Quelloperanden */
-        estimate_read(insn->args[1], !insn->args[0]->is_reg(rAX), !insn->args[0]->is_reg(rAX));
-        estimate_read(insn->args[0], false, true);
+        estimate_read(insn->args[1], !insn->args[0]->is_reg(rAX), !insn->args[0]->is_reg(rAX), znd);
+        estimate_read(insn->args[0], false, true, znd);
         break;
      case I_IMUL:
         /* Mischform: Ziel/Quell, oder Quell */
         if(insn->args[1]) {
-            estimate_read(insn->args[1], false, true);
-            estimate_write(insn->args[0]);
+            estimate_read(insn->args[1], false, true, znd);
+            estimate_write(insn->args[0], znd);
         } else
-            estimate_read(insn->args[0], false, true);
+            estimate_read(insn->args[0], false, true, znd);
         break;
      case I_MOV:
         /* Ziel und Quell, aber Quelle kann nicht kleiner werden */
@@ -217,20 +221,20 @@ void estimate_insn(CInstruction* insn)
                  && insn->args[1]->memory[0]==rNONE && insn->args[1]->memory[1]==rNONE;
              bool is_mov_imm = insn->args[0]->type == CArgument::REGISTER
                  && insn->args[1]->type == CArgument::IMMEDIATE;
-             estimate_read(insn->args[1], false, !(is_A0 || is_mov_imm));
-             estimate_write(insn->args[0]);
+             estimate_read(insn->args[1], false, !(is_A0 || is_mov_imm), znd);
+             estimate_write(insn->args[0], znd);
          }
          break;
      case I_XCHG:
         /* Zwei Zieloperanden */
-        estimate_write(insn->args[0]);
-        estimate_write(insn->args[1]);
+        estimate_write(insn->args[0], znd);
+        estimate_write(insn->args[1], znd);
         break;
      case I_LEA:
      case I_LES:
      case I_LDS:
         /* der 2. Operand kann nicht by-value verwendet werden */
-        estimate_write(insn->args[1]);
+        estimate_write(insn->args[1], znd);
         break;
      default:;
     }
@@ -314,6 +318,12 @@ void optimize_basic_block(CInstruction* start, CInstruction* end, bool* regs_use
                 use_adr[i] = v;
                 /* Ändern der Argumente zerstört p->args */
                 found = true;
+
+                for(TEstimate* q = estimated_savings; q != 0; q = q->next) {
+                    int i = p->arg->adr_diff(q->arg);
+                    if(i && i > -127 && i < 127)
+                        q->used = true;
+                }
             }
         }
     clear_estimates();
@@ -337,8 +347,16 @@ void optimize_basic_block(CInstruction* start, CInstruction* end, bool* regs_use
             for(int i = 0; i < changeable_args[start->insn]; i++)
                 if(start->args[i])
                     for(int reg = rAX; reg <= rDI; reg++)
-                        if(compare[reg] && *start->args[i] == *compare[reg]) {
-                            replace_argument(start->args[i], TRegister(reg), use_adr[reg]);
+                        if(compare[reg]) {
+                            if(*start->args[i] == *compare[reg])
+                                replace_argument(start->args[i], TRegister(reg), use_adr[reg]);
+                            else if(use_adr[reg]) {
+                                int d = compare[reg]->adr_diff(start->args[i]);
+                                if(d && d > -127 && d < 127) {
+                                    replace_argument(start->args[i], TRegister(reg), use_adr[reg]);
+                                    start->args[i]->inc_imm(-d);
+                                }
+                            }
                         }
         start = start->next;
     }
@@ -416,10 +434,13 @@ void global_register_allocation(CInstruction* insn, bool* regs_used)
         return;
     
     insn = pre->next;
-   
+
+    int last_ip = -1;   
     for(CInstruction* p = insn; p != 0; p = p->next)
-        if(p->opsize == 2)
-            estimate_insn(p);
+        if(p->opsize == 2) {
+            estimate_insn(p, last_ip == p->ip);
+            last_ip = p->ip;
+        }
 
     /* `krumme' Operanden wegwerfen */
     int min_bp = 0;
@@ -596,6 +617,7 @@ void register_allocation(CInstruction* oinsn)
 
     /* ok, suche basic blocks */
     CInstruction* start = insn;
+    int last_ip = -1;
     while(insn) {
         if(insn->opsize != 1) switch(insn->insn) {
          case I_LABEL: case I_CALLF: case I_CALLN:
@@ -603,9 +625,11 @@ void register_allocation(CInstruction* oinsn)
             /* Ende des Blocks */
             optimize_basic_block(start, insn, regs_used);
             start = insn->next;
+            last_ip = -1;
             break;
          default:
-            estimate_insn(insn);
+            estimate_insn(insn, last_ip == insn->ip);
+            last_ip = insn->ip;
             break;
         }
         insn = insn->next;

@@ -1,7 +1,7 @@
 /*
  *  Optimierer für tputuner
  *
- *  (c) copyright 1998 by Stefan Reuther
+ *  (c) copyright 1998,1999,2000 by Stefan Reuther
  *
  *  Dieses Modul enthält die `einfachen' Optimierungen und die
  *  Steuerroutine, die alle Optimierungen aufruft.
@@ -19,6 +19,8 @@
 #include "cse.h"
 
 bool changed;
+char* global_code_ptr;
+int global_code_id;
 
 #define REMOVE_FRAME 0
 
@@ -457,6 +459,9 @@ CNewCode* do_optimize(int id,
 		      char* code, int code_size, int my_offset,
 		      char* relo, int relo_count)
 {
+    global_code_ptr = code;
+    global_code_id  = id;
+    code += my_offset;
     CInstruction* insn = disassemble(code, code_size, my_offset, relo, relo_count);
     int pass = 0;
     int exit_counter = 2;

@@ -1,7 +1,7 @@
 /*
  *  Verwaltung von Assembler-Befehlen für tputuner
  *
- *  (c) copyright 1998 by Stefan Reuther
+ *  (c) copyright 1998,1999,2000 by Stefan Reuther
  *
  *  Jeder Befehl ist ein CInstruction-Objekt, die Argumente sind
  *  CArgument'e. Es gibt keine Subklassen für spezielle Befehle
@@ -288,6 +288,35 @@ void CArgument::write_rm(CCodeWriter& w,   // wohin ausgeben?
 	/* disp8 */
 	w.wb(areg | 0x40);
 	w.wb(immediate);
+    }
+}
+
+// Differenz der Adressen zweier Argumente (`this - other')
+// liefert 0 wenn nicht vergleichbar (!)
+// (dann ist aber *this == *other)
+int CArgument::adr_diff(CArgument* other)
+{
+    if(type != MEMORY || other->type != MEMORY)
+        return 0;
+
+    // FIXME -- [bx+di+N] ist nicht vergleichbar mit [di+bx+N]
+    // passiert das aber?
+    if(segment != other->segment || memory[0] != other->memory[0]
+       || memory[1] != other->memory[1])
+        return 0;
+
+    if(reloc) {
+        if(!other->reloc)
+            return 0;
+        CRelo* r = other->reloc;
+        if(reloc->unitnum != r->unitnum || reloc->rtype != r->rtype
+           || reloc->rblock != r->rblock)
+            return 0;
+        return reloc->rofs - r->rofs;
+    } else {
+        if(other->reloc)
+            return 0;
+        return immediate - other->immediate;
     }
 }
 
