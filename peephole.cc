@@ -18,6 +18,8 @@
 #include "tpufmt.h"
 #include "cse.h" /* für compute_insn_dep() */
 
+#define ALL_SET(x,y) (((x) & (y)) == (y))
+
 extern int sys_unit_offset;     // in tputuner.cc
 extern int ref_this_unit;       // in tputuner.cc
 
@@ -27,6 +29,34 @@ typedef enum {
     A_DELETE,      // Befehl löschen
     A_RESCAN       // geändert, nochmal bewerten
 } TAction;
+
+/* Sprung Charakteristika */
+int jmp_char[] = {
+    IF_OTHER,
+    IF_OTHER,
+    IF_BELOW,
+    IF_ABOVE | IF_EQUAL,
+    IF_EQUAL,
+    IF_NONEQUAL,                // nur jne darf IF_NONEQUAL haben
+    IF_BELOW | IF_EQUAL,
+    IF_ABOVE,
+    IF_OTHER,
+    IF_OTHER,
+    IF_OTHER,
+    IF_OTHER,
+    IF_LESS,
+    IF_GREATER | IF_EQUAL,
+    IF_LESS | IF_EQUAL,
+    IF_GREATER
+};
+
+int jmp_for_char (int ch)
+{
+    for (int i = 0; i < 16; ++i)
+        if (jmp_char[i] == ch)
+            return i;
+    return -1;
+}
 
 /*
  *  Prüft Nullbefehle
@@ -55,19 +85,76 @@ TAction check_jump(CInstruction* p)
     /* jcc <label:> */
     if(p->insn != I_JCC || p->args[0]->type != CArgument::LABEL)
         return A_BAD;
+
     /* jmp <woanders> */
-    if(!p->next || p->next->insn != I_JMPN || p->next->args[0]->type != CArgument::LABEL)
+    if(!p->next || !p->next->args[0] || p->next->args[0]->type != CArgument::LABEL)
         return A_BAD;
-    
-    if(p->args[0]->label == p->next->next) {
-        /* inverse conditional jump */
+
+    if(p->next->insn == I_JMPN) {
+        if(p->args[0]->label == p->next->next) {
+            /* inverse conditional jump */
+            CInstruction* n = p->next;
+            n->insn = I_JCC;
+            n->param = p->param ^ 1;
+            return A_DELETE;
+        } else if(*p->args[0] == *p->next->args[0]) {
+            /* Zwei Sprünge - eine Meinung */
+            return A_DELETE;
+        }
+    } else if(p->next->insn == I_JCC) {
         CInstruction* n = p->next;
-        n->insn = I_JCC;
-        n->param = p->param ^ 1;
-        return A_DELETE;
-    } else if(*p->args[0] == *p->next->args[0]) {
-        /* Zwei Sprünge - eine Meinung */
-        return A_DELETE;
+
+        /* Zwei Sprnge. Wenn der zweite immer dann springt, wenn
+           der erste das auch tut -> l”sche zweiten */
+        int fst = jmp_char[p->param];
+        int snd = jmp_char[n->param];
+        if (fst == IF_NONEQUAL) 
+            fst = IF_ABOVE | IF_BELOW | IF_LESS | IF_GREATER;
+        if (snd == IF_NONEQUAL) 
+            snd = IF_ABOVE | IF_BELOW | IF_LESS | IF_GREATER;
+        if (((fst | snd) & IF_OTHER) == 0 && ALL_SET(fst, snd)) {
+            /* trifft zu */
+std::cout << "<ok>";
+            p->next = n->next;
+            delete n;
+            return A_RESCAN;
+        }
+
+        if (*p->args[0] == *n->args[0]) {
+            /* Zwei Sprnge zum selben Ziel */
+            /* probiere, einen Sprung zu synthetisieren, der
+               beides auf einmal kann */
+            int when = jmp_char[p->param] | jmp_char[n->param];
+            if (when & IF_OTHER)
+                return A_BAD;
+            if (ALL_SET(when, IF_ABOVE | IF_BELOW | IF_EQUAL)
+                || ALL_SET(when, IF_LESS | IF_GREATER | IF_EQUAL)
+                || ALL_SET(when, IF_EQUAL | IF_NONEQUAL)) {
+                /* jcond     <foo>
+                   jnotcond  <foo>    => jmp <foo> */
+                n->insn = I_JMPN;
+                n->param = 0;
+                return A_DELETE;
+            }
+            if (when & IF_NONEQUAL) {
+                /* ja <foo>
+                   jne <foo>    => ja <foo> */
+                n->param = jmp_for_char(when & ~IF_NONEQUAL);
+                return A_DELETE;
+            }
+            if (ALL_SET(when, IF_LESS | IF_GREATER)
+                || ALL_SET(when, IF_ABOVE | IF_BELOW)) {
+                /* ja <foo>
+                   jb <foo>   => jne <foo> */
+                n->param = CC_NE;
+                return A_DELETE;
+            }
+            int x = jmp_for_char(when);
+            if (x < 0)
+                return A_BAD;
+            n->param = x;
+            return A_DELETE;
+        }
     }
     return A_BAD;
 }
@@ -1101,7 +1188,7 @@ TAction check_push_ptr(CInstruction* i)
         if(in.regs & test)
             return A_BAD;       // beweisbar nicht sicher
         out.fix_regs_conservative();
-        if(out.regs & test)
+        if((out.regs & test) == test)
             break;
         p = p->next;
     }
@@ -1207,6 +1294,17 @@ TAction check_int_arit(CInstruction* i)
     return A_BAD;
 }
 
+/*
+ *  "tote" Vergleiche loeschen. Entstehen z.B. bei
+ *  IF (longvar>=0) AND (longvar<100) ...
+ */
+TAction check_dead_tests(CInstruction* i)
+{
+    if (i->insn == I_CMP && flag_check(i->next))
+        return A_DELETE;
+    return A_BAD;
+}
+
 TAction last_function(CInstruction* i)
 {
     return A_CONTINUE;
@@ -1236,6 +1334,7 @@ TAction (*functions[])(CInstruction* i) = {
     check_push_ptr,
     check_func_return,
     check_int_arit,
+    check_dead_tests,
     last_function
 };
 

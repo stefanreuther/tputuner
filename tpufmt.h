@@ -71,6 +71,7 @@ enum {
     /* Blocknummern */
     SYS_LONG_SQR = 0x50,        /* in: dx:ax=value  out: dx:ax=value^2 */
     SYS_LONG_MUL = 0x28,        /* in: dx:ax=a, cx:bx=b  out: dx:ax=a*b */
+    SYS_LONG_DIV = 0x30,        /* in: dx:ax, cx:bx; out: quot/rem; clobbers si,di */
     SYS_SLOAD    = 0x58,        /* in: push dest, push src  out: src popped */
 
     /* Typen */

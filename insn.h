@@ -102,6 +102,27 @@ typedef enum { I_INVALID,
 	       I_SETCC
 } TInsn;
 
+enum {		// condition codes
+	CC_O,	CC_NO,
+	CC_B,	CC_AE,
+	CC_E,	CC_NE,
+	CC_BE,	CC_A,
+	CC_S,	CC_NS,
+	CC_PE,	CC_PO,
+	CC_L,	CC_GE,
+	CC_LE,	CC_G
+};
+
+enum {
+	IF_ABOVE = 1,
+	IF_BELOW = 2,
+	IF_EQUAL = 4,
+	IF_LESS  = 8,
+	IF_GREATER = 16,
+        IF_OTHER = 32,
+        IF_NONEQUAL
+};
+
 extern char* insn_names[];
 
 /*** Befehl ***/
@@ -132,5 +153,6 @@ public:
 };
 
 bool alias_reg(TRegister modify, TRegister keep);
+bool is_call_to(CArgument* a, int index);
 
 #endif
