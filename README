@@ -251,6 +251,10 @@ Optimierungen
 		or	ax, ax
   egal, in welchem Kontext.
 
+  An einigen Stellen macht diese Optimierung jedoch Annahmen über den
+  Code: Die Initialisierung einer FOR-Schleife wird verkürzt, und
+  in `LONGINT(value) * konstante' wird ein Bibliotheksaufruf entfernt.
+
 
 * Unbenutzten Code entfernen (--remove-unused-code)
 
@@ -565,13 +569,14 @@ Debuglistings
   (z.B. `xor(2)  ax, ax, 0'), der für interne Abläufe in TPUTUNER
   wichtig ist.
 
-  TPUTUNER erzeugt auch im Nicht-386er-Modus `setcc'-Befehle in den
-  Debug-Listings (set byte on condition, 0Fh 9xh). Diese werden in der
-  Ausgabe vom Assembler wieder auseinandergenommen.
+  TPUTUNER erzeugt auch im Nicht-386er-Modus 386er-Befehle in den
+  Debug-Listings. Diese werden in der Ausgabe vom Assembler wieder
+  auseinandergenommen.
 
   Relocation-Einträge werden von TPUTUNER nicht weiter analysiert, bis 
   auf die Annahme, daß der Wert `ro=' zur Berechnung des Abstandes im
-  Speicher von zwei sonst identischen Einträgen benutzt werden kann.
+  Speicher von zwei sonst identischen Einträgen benutzt werden kann,
+  und das bestimmte Relocations Systemaufrufe der Unit SYSTEM bezeichnen.
 
   Mit diesem Script können 2 Dumps verglichen werden, ohne die Offsets
   an den Zeilenanfängen mitzuvergleichen:

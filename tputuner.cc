@@ -23,6 +23,7 @@ char* new_unit;    // Neue Unit
 int new_size;      // Neue Größe
 
 int ofs_this_unit = 0; // Offset, unter dem diese Unit referenziert wird
+int sys_unit_offset = 0;
 
 bool do_names = true;  // Namen lesen?
 
@@ -307,6 +308,22 @@ void read_hashtable(int hash_ofs, string prefix)
 
     for(int i=1; i<=hash_size; i++)
         read_hash_branch(get_word(hash_ofs + 2*i), prefix);
+}
+
+void find_system_unit()
+{
+    int ofs = get_word(OFS_UNIT_LIST);
+    int end = get_word(OFS_SRC_NAME);
+    while(ofs < end) {
+        int len = unit[ofs + 2];
+        if(len == 6 && strncmp(&unit[ofs + 3], "SYSTEM", 6)==0) {
+            sys_unit_offset = ofs - get_word(OFS_UNIT_LIST);
+            cout << "System unit at " << sys_unit_offset << endl;
+            return;
+        }
+        ofs += len + 3;
+    }
+    cout << "Can't find system unit!" << endl;
 }
 
 /*
@@ -624,6 +641,7 @@ int main(int argc, char* argv[])
     cout << "analyzing headers..." << endl;
     create_objects();
     if(do_names) read_hashtable(get_word(OFS_FULL_HASH), "");
+    find_system_unit();
 
     cout << "optimizing..." << endl;
     for(list<CCodeBlock*>::iterator i=code_list.begin(); i!=code_list.end(); i++)
