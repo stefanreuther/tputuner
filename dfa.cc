@@ -675,7 +675,6 @@ CInstruction* optimize_mov(CInstruction* insn)
         if(insn->opsize == 2 && insn->args[1]->type == CArgument::IMMEDIATE) {
             TRegister r1 = find_reg_with_value(insn->args[1]);
             if(r1 != rNONE) {
-                cout << "^";
                 use_reg(r1);
                 delete insn->args[1];
                 insn->args[1] = new CArgument(r1);
@@ -1042,7 +1041,6 @@ CInstruction* optimize_arit(CInstruction* insn)
                 /* add, sub, or, xor, cmp */
                 delete insn->args[1];
                 insn->args[1] = new CArgument(*insn->args[0]);
-                cout << ">";
                 changed = true;
                 return insn;
             }
@@ -1055,7 +1053,6 @@ CInstruction* optimize_arit(CInstruction* insn)
              case I_OR:
              case I_XOR:
                 /* dasselbe wie MOV */
-                cout << "<";
                 insn->insn = I_MOV;
                 changed = true;
                 break;
@@ -1068,7 +1065,6 @@ CInstruction* optimize_arit(CInstruction* insn)
                     i = insn->prev;
                     delete insn;
                     changed = true;
-                    cout << "-";
                     return i;
                 }
                 break;
