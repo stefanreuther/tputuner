@@ -555,6 +555,7 @@ CInstruction* optimize_mov(CInstruction* insn)
 		    /* ersetze mov r,m durch mov r,r */
 		    delete insn->args[1];
 		    insn->args[1] = new CArgument(TRegister(i));
+                    values[insn->args[0]->reg] = values[insn->args[1]->reg];
 		    changed = true;
 		    return insn;
 		}
