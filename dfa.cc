@@ -1170,6 +1170,19 @@ void optimize_div(CInstruction* insn)
  */
 void optimize_mul(CInstruction* insn)
 {
+    if(insn->insn==I_IMUL && insn->args[0]->is_word_reg()
+       && values[insn->args[0]->reg].type==TValue::CONSTANT
+       && values[insn->args[0]->reg].value->is_immed(1)) {
+        /* imul X, where X is 1 */
+        values[insn->args[0]->reg].known = true;
+        insn->insn = I_CWD;
+        delete insn->args[0];
+        insn->args[0] = 0;
+        set_unknown(rDX, true);
+        changed = true;
+        cout << "<foo>";
+        return;
+    }
     optimize_argument(insn->opsize, insn->args[0], false);
     if(insn->opsize==2) {
 	use_reg(rAX);
