@@ -12,6 +12,8 @@ CNewCode* do_optimize(int id,
 		      char* code, int code_size, int my_ip,
 		      char* relo, int relo_coun);
 
+extern char* global_code_ptr;
+extern int global_code_id;
 extern bool changed;
 
 #endif

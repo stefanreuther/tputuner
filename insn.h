@@ -75,6 +75,8 @@ public:
     bool operator==(const CArgument& a) const;
 
     void inc_imm(int i) { if(reloc) reloc->rofs+=i; else immediate+=i; }
+
+    int adr_diff(CArgument* other);
 };
 
 typedef enum { I_INVALID,
