@@ -231,6 +231,50 @@ TAction check_smalladd(CInstruction* p)
     return A_RESCAN;
 }
 
+static int classify_arg(CArgument* l)
+{
+    if(l->memory[0] != rNONE || l->memory[1] != rNONE || l->segment != rDS)
+        return 2;
+    else
+        if(l->reloc)
+            return 1;
+        else
+            return 0;
+}
+
+/*
+ *  Kanonische Reihenfolge feststellen
+ *
+ *  [a1] < [a2]      <=>  a1 < a2
+ *  [a1] < [reg+a2]
+ *  [reg+a1] < [reg+a2] <=> a1 < a2
+ *
+ *  /arg_compare/ liefert true, wenn r vor l kommt. reg+imm werden noch nicht verglichen
+ */
+static bool arg_compare(CArgument* l, CArgument* r)
+{
+    int t1 = classify_arg(l);
+    int t2 = classify_arg(r);
+
+    if(t1 == t2) {
+        if(t1 == 2)             // [reg+a1] =? [reg+a2]
+            return false;       // FIXME: evtl. vergleichen
+        else if(t1 == 1) {      // [relo] =? [relo]
+#define CMP(FIELD) if(l->reloc->FIELD < r->reloc->FIELD) return false; \
+            if(l->reloc->FIELD > r->reloc->FIELD) return true;
+            CMP(unitnum);
+            CMP(rblock);
+            CMP(rofs);
+#undef CMP
+            return false;
+        } else
+            return l->immediate > r->immediate;
+    } else
+        if(t1 == 2 || t2 == 2)  // Aliasing-Probleme!
+            return false;
+        return (t1 > t2);
+}
+
 /*
  *  Verschiedene Dinge mit mov
  */
@@ -244,36 +288,51 @@ TAction check_mov(CInstruction* p)
         /*
          *  mov mem,const
          */
-        if(p->opsize==1 && n && n->insn==I_MOV
-           && n->opsize==1 && n->args[0]->type==CArgument::MEMORY
+        if(n && n->insn==I_MOV
+           && n->args[0]->type==CArgument::MEMORY
            && n->args[1]->type==CArgument::IMMEDIATE &&
            n->args[1]->reloc==0) {
-            /*
-             * mov(1) mem,const
-             * mov(1) mem,const
-             * -> mov(2) mem,const
-             */
+            if(p->opsize==1 && n->opsize==1) {
+                /*
+                 * mov(1) mem,const
+                 * mov(1) mem,const
+                 * -> mov(2) mem,const
+                 */
                 
-            n->args[0]->inc_imm(1);
-            if(*p->args[0]==*n->args[0]) {
-                /* erster Befehl lädt auf höhere Adresse */
-                n->args[0]->inc_imm(-1);
-                n->opsize = 2;
-                n->args[1]->immediate =
-                    (n->args[1]->immediate & 255) +
-                    p->args[1]->immediate * 256;
+                n->args[0]->inc_imm(1);
+                if(*p->args[0]==*n->args[0]) {
+                    /* erster Befehl lädt auf höhere Adresse */
+                    n->args[0]->inc_imm(-1);
+                    n->opsize = 2;
+                    n->args[1]->immediate =
+                        (n->args[1]->immediate & 255) +
+                        p->args[1]->immediate * 256;
+                    return A_DELETE;
+                }
+                n->args[0]->inc_imm(-2);
+                if(*p->args[0]==*n->args[0]) {
+                    /* zweiter Befehl lädt auf höhere Adresse */
+                    //n->args[0]->inc_imm(1);
+                    n->opsize = 2;
+                    n->args[1]->immediate =
+                        256 * n->args[1]->immediate + (p->args[1]->immediate & 255);
+                    return A_DELETE;
+                }
+                n->args[0]->inc_imm(1);
+            }
+            /* zwei moves, in kanonische Reihenfolge bringen */
+            if(do_sort_moves && arg_compare(p->args[0], n->args[0])) {
+                CInstruction* x = (new CInstruction(I_MOV,
+                                                    new CArgument(*p->args[0]),
+                                                    new CArgument(*p->args[1])))
+                    ->set_os(p->opsize);
+                x->next = n->next;
+                x->prev = n;
+                n->next = x;
+                if(x->next)
+                    x->next->prev = x;
                 return A_DELETE;
             }
-            n->args[0]->inc_imm(-2);
-            if(*p->args[0]==*n->args[0]) {
-                /* zweiter Befehl lädt auf höhere Adresse */
-                //n->args[0]->inc_imm(1);
-                n->opsize = 2;
-                n->args[1]->immediate =
-                    256 * n->args[1]->immediate + (p->args[1]->immediate & 255);
-                return A_DELETE;
-            }
-            n->args[0]->inc_imm(1);
         }
 
         if(do_size && p->opsize==2) {
