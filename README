@@ -213,6 +213,11 @@ Optimierungen
   zu initialisieren und ist sich sicher, die Verwendung von SI
   gefunden zu haben.
 
+  Diese Optimierung entfernt ebenfalls Arithmetikbefehle, wenn deren
+  Operanden bekannt sind. Speziell bei Longint-Arithmetik entstehen
+  hier u.U. Vorteile, da Turbo manchmal `and'-Befehle codiert, bei
+  denen ein Operand garantiert 0 ist.
+
 
 * Sprungketten entfernen (--reduce-jump-chains)
 
