@@ -770,7 +770,6 @@ void optimize_push(CInstruction* insn)
                  mov di, [di.vmt] */
             if(insn->next->args[1] && insn->next->args[1]->uses_reg(reg)) {
                 use_reg(reg);
-                cout << "OOHE ";
             } else {
                 values[reg].known = true;
                 delete insn->args[0];
