@@ -5,7 +5,7 @@ GCC := gcc
 
 # No user-serviceable parts below
 OBJECTS := tputuner.o optimize.o insn.o disassemble.o codewriter.o assemble.o \
-           dfa.o global.o peephole.o
+           dfa.o global.o peephole.o regalloc.o
 LIBS := -lstdc++
 
 $(EXENAME): $(OBJECTS)
