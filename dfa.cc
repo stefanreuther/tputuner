@@ -762,10 +762,20 @@ void optimize_push(CInstruction* insn)
 	 *  push reg
 	 */
 	if(values[reg].type == TValue::CONSTANT && !values[reg].used) {
-	    values[reg].known = true;
-	    delete insn->args[0];
-	    insn->args[0] = new CArgument(*(values[reg].value));
-	    changed = true;
+            /* heuristics for OOP:
+                 mov di, obj
+                 ...
+                 push di
+                 mov di, [di.vmt] */
+            if(insn->next->args[1] && insn->next->args[1]->uses_reg(reg)) {
+                use_reg(reg);
+                cout << "OOHE ";
+            } else {
+                values[reg].known = true;
+                delete insn->args[0];
+                insn->args[0] = new CArgument(*(values[reg].value));
+                changed = true;
+            }
 	} else
 	    use_reg(reg);
     } else {
@@ -810,8 +820,9 @@ void optimize_pop(CInstruction* insn)
 		values[reg].set_const(insn, insn->args[1]);
 	    else
 		values[reg].set_mem(insn, insn->args[1]);
-	} else
+	} else {
 	    set_unknown(reg, true);
+        }
 	delete v;
     } else {
 	delete pop_value();
