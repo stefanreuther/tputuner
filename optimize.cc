@@ -16,6 +16,7 @@
 #include "global.h"
 #include "peephole.h"
 #include "regalloc.h"
+#include "cse.h"
 
 bool changed;
 
@@ -468,6 +469,8 @@ CNewCode* do_optimize(int id,
 	if(do_dumps)
 	    write_file(id, pass, insn);
 	pass++;
+        if(do_the_cse)
+            do_cse(insn);
         if(do_early_jmp)
             early_jumps(insn);
         if(do_late_jmp)
