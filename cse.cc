@@ -134,6 +134,7 @@ bool is_break(CInstruction* p)
      case I_INVALID:
      case I_LABEL:
      case I_CALLN:
+     case I_STRING:             // handle these like calls
         return true;
      default:
         return false;
@@ -281,6 +282,12 @@ void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
      case I_SETCC:
         out.add_op(p->args[0], in);
         in.flags = true;
+        break;
+     case I_STRING:
+        // FIXME: this does not happen
+        break;
+     case I_FLAG:
+        // right now, only cld/std which do not change flags that we look at
         break;
     }
 }

@@ -82,10 +82,15 @@ enum {
     CODE_OFS_REF = 0x50,        /* 2-byte offset */
 
     /* Object Types (nametype.pas, xxx_id) */
+    ITYP_TYPE    = 81,
+    ITYP_PROC    = 83,
     ITYP_UNIT    = 89,
     
     /* Unit block format (blocks.pas, unit_block_rec) */
-    UNIT_BLOCK_NAME = 2         /* offset of name */
+    UNIT_BLOCK_NAME = 2,         /* offset of name */
+
+    /* Type definition (nametype.pas, type_def_rec) */
+    TYPE_HASH_OFS   = 6          /* offset of hash_ofs */
 };
 #elif UNIT_FORMAT == 7
 #define UNIT_ID "TPUQ"
@@ -143,10 +148,15 @@ enum {
     CODE_OFS_REF = 0x50,        /* 2-byte offset */
 
     /* Object Types (nametype.pas, xxx_id) */
+    ITYP_TYPE    = 80,
+    ITYP_PROC    = 82,
     ITYP_UNIT    = 83,
 
     /* Unit block format (blocks.pas, unit_block_rec) */
-    UNIT_BLOCK_NAME = 4         /* offset of name */
+    UNIT_BLOCK_NAME = 4,         /* offset of name */
+
+    /* Type definition (nametype.pas, type_def_rec) */
+    TYPE_HASH_OFS   = 8          /* offset of hash_ofs */
 };
 #else
 #  error "UNIT_FORMAT must be 6 or 7"

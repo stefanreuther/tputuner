@@ -53,6 +53,8 @@ char* insn_names[] = {
 	       
     "leave", "enter",
 
+    "flag", "string",
+
     "setcc"
 };
 
@@ -367,13 +369,51 @@ CInstruction::~CInstruction()
 	delete args[i];
 }
 
+struct CodeName {
+    unsigned char code;
+    const char* name;
+};
+static CodeName code_names[] = {
+    { 0, "cc = 'o'" },
+    { 1, "cc = 'no'" },
+    { 2, "cc = 'b', 'c'" },
+    { 3, "cc = 'nb', 'nc'" },
+    { 4, "cc = 'e', 'z'" },
+    { 5, "cc = 'ne', 'nz'" },
+    { 6, "cc = 'na'" },
+    { 7, "cc = 'a'" },
+    { 8, "cc = 's', 'neg'" },
+    { 9, "cc = 'ns', 'pos'" },
+    { 10, "cc = 'pe'" },
+    { 11, "cc = 'po'" },
+    { 12, "cc = 'l'" },
+    { 13, "cc = 'nl'" },
+    { 14, "cc = 'ng'" },
+    { 15, "cc = 'g'" },
+    { CODE_CLD, "cld" },
+    { CODE_STD, "std" },
+    { CODE_REP, "rep" },
+    { CODE_REPNE, "repne" },
+    { CODE_MOVSB, "movsb" },
+    { CODE_MOVSW, "movsw" },
+    { CODE_CMPSB, "cmpsb" },
+    { CODE_CMPSW, "cmpsw" },
+    { CODE_LODSB, "lodsb" },
+    { CODE_LODSW, "lodsw" },
+    { CODE_SCASB, "scasb" },
+    { CODE_SCASW, "scasw" },
+    { CODE_STOSB, "stosb" },
+    { CODE_STOSW, "stosw" },
+    { 0, 0 }
+};
+
 // in menschenlesbarer Form ausgeben
 void CInstruction::print(ostream& cout)
 {
     int x = strlen(insn_names[insn]);
     cout << hex << ip << ":  " << insn_names[insn];
     if(opsize) cout << "(" << opsize << ")", x+=3;
-    if(insn==I_JCC || insn==I_LABEL || insn==I_SETCC)
+    if(insn==I_JCC || insn==I_LABEL || insn==I_SETCC || insn==I_FLAG || insn==I_STRING)
 	cout << "`" << param << "'", x+=3;
     while(x < 10) cout << " ", x++;
 
@@ -382,6 +422,13 @@ void CInstruction::print(ostream& cout)
 	args[i]->print(cout);
     }
     if(insn==I_LABEL) cout << "<" << ip << ">";
+    if (insn==I_FLAG || insn==I_STRING || insn==I_SETCC || insn==I_JCC) {
+        CodeName* c = code_names;
+        while (c->name && c->code != param)
+            ++c;
+        if (c->name)
+            cout << "    // " << c->name;
+    }
     cout << dec << endl;
 }
 
@@ -630,6 +677,8 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
     case I_MOV:
 	if(args[0]->is_seg_reg()) {
 	    /* mov Sr,rm16 */
+            if (args[1]->is_seg_reg())
+                throw string("Invalid assignment of segment register (MOV sr,sr)");
 	    args[1]->write_rm(w, 0x8E, reg_values[args[0]->reg]);
 	} else if(args[1]->is_seg_reg()) {
 	    /* mov rm16,Sr */
@@ -829,6 +878,19 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
 	    args[0]->write_rm(w, 0xFF, insn==I_JMPN?4:2);
 	} else throw string("Invalid JMP/CALL near");
 	break;
+     case I_FLAG:
+        w.wb(param);
+        break;
+     case I_STRING:
+        if (args[0]->type != CArgument::IMMEDIATE || args[0]->reloc
+            || args[1]->type != CArgument::REGISTER)
+            throw string("Invalid string insn");
+        if (args[0]->immediate) // prefix
+            w.wb(args[0]->immediate);
+        if (args[1]->reg != rDS)// override
+            seg_override(w, args[1]->reg);
+        w.wb(param);
+        break;
     case I_SETCC:
 	if(do_386) {
 	    args[0]->write_rm(w, 0x90+param, 0, true, 0x0F);

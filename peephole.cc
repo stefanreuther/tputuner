@@ -114,7 +114,6 @@ TAction check_jump(CInstruction* p)
             snd = IF_ABOVE | IF_BELOW | IF_LESS | IF_GREATER;
         if (((fst | snd) & IF_OTHER) == 0 && ALL_SET(fst, snd)) {
             /* trifft zu */
-std::cout << "<ok>";
             p->next = n->next;
             delete n;
             return A_RESCAN;
@@ -369,7 +368,7 @@ bool references_memory(CInstruction* p)
 {
     while(p) {
         switch(p->insn) {
-         case I_JMPN: case I_JMPF: case I_CALLN: case I_CALLF:
+         case I_JMPN: case I_JMPF: case I_CALLN: case I_CALLF: case I_STRING:
             return true;
          default:
             for(int i = 0; i < 3; i++)
@@ -1022,6 +1021,9 @@ TAction check_reg_swap(CInstruction* i)
 
     CInstruction* mov = i->next;
     if(*i->args[0] != *mov->args[1] || mov->args[0]->type != CArgument::REGISTER)
+        return A_BAD;
+
+    if (i->args[0]->is_seg_reg() || mov->args[0]->is_seg_reg())
         return A_BAD;
 
     TRegister r1 = i->args[0]->reg;

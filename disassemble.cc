@@ -190,7 +190,8 @@ CInstruction* decode_one(int& opcode_ip)
     CArgument* a;
     char* relo;
     int w;
-    
+    int repeat = 0;
+
     while(1) {
 	opcode_ip = ip;
 	opcode = code[ip++ - ip_diff];
@@ -198,9 +199,14 @@ CInstruction* decode_one(int& opcode_ip)
 	else if(opcode==0x36) seg_ovr = rSS;
 	else if(opcode==0x2E) seg_ovr = rCS;
 	else if(opcode==0x3E) seg_ovr = rDS;
+        else if(opcode==0xF2 || opcode==0xF3) repeat = opcode;
 	else break;
     }
-    
+
+    if (repeat && !((opcode >= 0xA4 && opcode <= 0xA7)
+                    || (opcode >= 0xAA && opcode <= 0xAF)))
+        throw string("Invalid insn with repeat prefix");
+
     switch(opcode / 8) {
     case 0: // ADD
 	if(opcode == 0x06) return new CInstruction(I_PUSH,
@@ -357,11 +363,25 @@ CInstruction* decode_one(int& opcode_ip)
 	    return new CInstruction(I_MOV,
 				    disp16_arg(),
 				    new CArgument(rAX));
-	    // der Rest sind Stringbefehle
+         case 0xA4: case 0xA5:  // MOVS
+         // case 0xA6: case 0xA7:  // CMPS
+            return (new CInstruction(I_STRING,
+                                     new CArgument(repeat, 0),
+                                     new CArgument(seg_ovr == rNONE ? rDS : seg_ovr)))
+                ->set_param(opcode);
 	}
 	return 0;
     case 21: // A8-AF: TEST, Stringbefehle
-	return 0;
+       switch(opcode) {
+        case 0xAA: case 0xAB:   // STOS
+        case 0xAC: case 0xAD:   // LODS
+        // case 0xAE: case 0xAF:   // SCAS
+           return (new CInstruction(I_STRING,
+                                    new CArgument(repeat, 0),
+                                    new CArgument(seg_ovr == rNONE ? rDS : seg_ovr)))
+               ->set_param(opcode);
+       }
+       return 0;
     case 22: // MOV rb,ib
 	return new CInstruction(I_MOV,
 				new CArgument(byte_regs[opcode & 7]),
@@ -492,6 +512,10 @@ CInstruction* decode_one(int& opcode_ip)
 	return 0;
     case 31: // F8..FF
 	switch(opcode) {
+         case 0xFC:
+         case 0xFD:
+            /* cld, std */
+            return (new CInstruction(I_FLAG))->set_param(opcode);
 	case 0xFE:
 	    a = decode_mod_rm(byte_regs);
 	    if(last_reg==0)
@@ -623,7 +647,7 @@ CArgument* decode_mod_rm(TRegister* regs)
     unsigned char mod_rm = read_byte();
 
     last_reg = (mod_rm >> 3) & 7;
-    
+
     /* Registeroperanden */
     if((mod_rm & 0xC0U) == 0xC0U) {
 	return new CArgument(regs[mod_rm & 7]);

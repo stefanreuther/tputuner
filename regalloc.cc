@@ -568,6 +568,7 @@ void register_allocation(CInstruction* oinsn)
                 break;
          case I_LEA:
          case I_CALLN:
+         case I_STRING:
          case I_JMPF:
             can_global = false;
             stackcheck = 0;
@@ -622,6 +623,7 @@ void register_allocation(CInstruction* oinsn)
         if(insn->opsize != 1) switch(insn->insn) {
          case I_LABEL: case I_CALLF: case I_CALLN:
          case I_JMPF:  case I_RETN:  case I_RETF:
+         case I_STRING:
             /* Ende des Blocks */
             optimize_basic_block(start, insn, regs_used);
             start = insn->next;

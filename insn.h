@@ -99,8 +99,28 @@ typedef enum { I_INVALID,
 	       
 	       I_LEAVE, I_ENTER,
 
+               I_FLAG, I_STRING,
+
 	       I_SETCC
 } TInsn;
+
+/* opcodes for certain special insns */
+enum {
+    CODE_CLD   = 0xFC,
+    CODE_STD   = 0xFD,
+    CODE_REP   = 0xF3,
+    CODE_REPNE = 0xF2,
+    CODE_MOVSB = 0xA4,
+    CODE_MOVSW = 0xA5,
+    CODE_CMPSB = 0xA6,
+    CODE_CMPSW = 0xA7,
+    CODE_STOSB = 0xAA,
+    CODE_STOSW = 0xAB,
+    CODE_LODSB = 0xAC,
+    CODE_LODSW = 0xAD,
+    CODE_SCASB = 0xAE,
+    CODE_SCASW = 0xAF
+};
 
 enum {		// condition codes
 	CC_O,	CC_NO,

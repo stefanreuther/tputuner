@@ -228,7 +228,7 @@ void read_hash_branch(int ofs, string prefix)
         int data_ptr = ofs + unit[ofs+3] + 4;
 
         switch(type) {
-         case 83: // Prozedur
+         case ITYP_PROC: // Prozedur
             {
                 int entry_ofs = get_word(OFS_ENTRY_PTS) + get_word(data_ptr+2);
                 for(list<CEntryBlock*>::iterator i=entry_list.begin();
@@ -240,13 +240,13 @@ void read_hash_branch(int ofs, string prefix)
                 }
             }
             break;
-         case 81: // Typ
+         case ITYP_TYPE: // Typ
             {
                 int type_ofs = get_word(data_ptr);
                 if(get_word(data_ptr+2)==ofs_this_unit
                    && unit[type_ofs]==3) {
                     // Objekttyp aus dieser Unit
-                    read_hashtable(get_word(type_ofs + 6), prefix + name + ".");
+                    read_hashtable(get_word(type_ofs + TYPE_HASH_OFS), prefix + name + ".");
                 }
             }
             break;

@@ -948,6 +948,9 @@ CInstruction* optimize_jcc_or_setcc(CInstruction* insn)
 	    /* FIXME: diese können auch als Sprung-Trigger benutzt werden. */
 	    /* das ist jedoch ungebräuchlich */
 	    break;
+         case I_STRING:
+            /* FIXME: cmpsb? */
+            break;
 	default:
 	    break;
 	}
@@ -1366,6 +1369,16 @@ void data_flow_analysis(CInstruction* insn)
          case I_LEA:
 	    optimize_lea(insn);
 	    break;
+         case I_FLAG:
+            break;
+         case I_STRING:
+            // FIXME: do something sensible.
+            use_reg(rSI);
+            use_reg(rDI);
+            use_reg(rES);
+            use_reg(rCX);
+            use_reg(rAX);
+            set_unknown();
          default:
 	    set_unknown();
 	}
