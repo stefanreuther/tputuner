@@ -702,10 +702,16 @@ void CInstruction::assemble(CCodeWriter& w)
 	    int distance = args[0]->label->ip - (ip+2);
 	    if(distance < -128 || distance > 127) {
 		/* jcc near */
-		if(!do_386 || insn!=I_JCC) {
-		    w.wb(0x90);
-		    w.wb(0x90);
-		    throw string("JCC/JCXZ too far");
+                if(insn != I_JCC)
+                    throw string("JCXZ too far");
+                else if(!do_386) {
+                    /* inverse conditional */
+                    w.wb(0x71 ^ param);
+                    w.wb(3);
+                    w.wb(0xE9);
+                    distance -= 3;
+		    w.wb(distance & 255);
+		    w.wb(distance >> 8);
 		} else {
 		    w.wb(0x0F);
 		    w.wb(0x80 + param);
