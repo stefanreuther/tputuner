@@ -7,14 +7,10 @@
 Funktion
 ---------
 
-  TPUTUNER optimiert eine Turbo Pascal Unit, um bessere Performance
-  und geringere Codegröße zu erreichen. Dazu disassembliert er die
-  Unit, analysiert den Code und ändert ihn, und reassembliert ihn
-  schließlich wieder. TPUTUNER ist nicht für den ständigen Einsatz
-  während der Programmentwicklung gedacht, da er teilweise recht
-  langsam arbeitet und die Debug-Informationen verlorengehen (bzw.
-  unbrauchbar werden). Vielmehr soll er noch ein bißchen Performance
-  aus einem fertigen Programm herausquetschen.
+  TPUTUNER optimiert eine Turbo Pascal 6.0 Unit (.tpu), um bessere
+  Performance und vor allem auch geringere Codegröße zu erreichen.
+  Dazu wird die Unit disassembliert, optimiert, und wieder
+  assembliert.
 
 
 Aufruf
@@ -35,17 +31,15 @@ Aufruf
   -m, --sort-moves
   -c, --combine-strings
   -g, --cse
-       Legen die Art der Optimierung fest. Standardmäßig sind die
-       Optionen außer -r, -c und -g eingeschaltet, ausgeschaltet werden
-       sie mit `-A' (Großbuchstaben für kurze Optionen) bzw.
-       `--no-data-flow-analysis'.
-       Abschalten einer Optimierung beeinflußt u.U. jedoch auch die
-       anderen. So erzeugt die Datenflußanalyse manchmal Nullbefehle,
-       die von der Peephole-Optimierung entfernt werden. "Das Ganze
-       ist mehr als die Summe seiner Teile."
+       Legen die Art der Optimierung fest. Standardmäßig sind alle
+       Optionen bis auf -r, -c und -g eingeschaltet. Um ein Option
+       auszuschalten, verwenden Sie Großbuchstaben (also `-A')
+       bzw. bei der langen Option `--no-' (also `--no-early-jump').
+       Siehe auch die Beschreibung der einzelnen Optionen weiter
+       unten.
 
   -d, --debug-dump
-       Aktiviert die Erzeugung von Debug-Dumps.
+       Aktiviert die Erzeugung von Debug-Dumps, siehe unten.
 
   -n, --names
        Wenn aktiv (Standard) liest TPUTUNER die Symboltabellen aus um
@@ -63,8 +57,8 @@ Aufruf
        schreibt TPUTUNER 286er-Code.
 
 
-Meldungen während des Ablaufs
-------------------------------
+Statusmeldungen
+----------------
 
   Während des Ablaufs werden Meldungen des folgenden Formates
   ausgegeben:
@@ -75,56 +69,43 @@ Meldungen während des Ablaufs
                    \      \__ Optimierer-Passes
                     \__ Codeblock-Nummer
 
-  Codeblock-Nummern: die erste implementierte Prozedur erhält Nummer
-  0, dann folgt Nummer 8, 10, 18 (hex) usw., unabhängig von der
-  Deklarations-Reihenfolge im INTERFACE-Teil.
+  + Codeblock-Nummern: die erste implementierte Prozedur erhält Nummer
+    0, dann folgt Nummer 8, 10, 18 (hex) usw., unabhängig von der
+    Deklarations-Reihenfolge im INTERFACE-Teil.
 
-  Mehr als 2 Optimierer-Passes: die Optimierung hat den Code
-  verbessert. Der letzte Pass dient immer dazu, festzustellen, daß
-  nichts mehr geht. Teilweise wird der Code auch kürzer, wenn nur ein
-  Optimierer-Pass läuft, da TPUTUNER's Reassembler stellenweise
-  Befehle kürzer codiert als Turbo Pascal. TPUTUNER führt mindestens
-  zwei Optimierer-Passes durch. Die letzten beiden Passes müssen
-  dasselbe Ergebnis liefern, als Zeichen, daß nichts mehr geht. Sonst
-  kann durch Verschieben von ein oder zwei Bytes während der Reassemb-
-  lierung eine Optimierung erst möglich werden. Ein Ausrufezeichen
-  nach der Pass-Nummer zeigt eine erfolgreiche Optimierung an.
+  + Optimierer-Passes: `!' markieren Passes, in denen eine
+    Code-Verbesserung auftrat. Nach 2 Passes mit identischem Ergebnis
+    wird die Optimierung beendet.
 
-  Mehr als 1 Reassembler-Pass: durch die Reassemblierung haben sich
-  noch Adressen verschoben, da z.B. ein Sprungziel nun näher an den
-  Sprung herangerückt ist, so daß der Sprung als `short' statt `near'
-  codiert werden kann. Nach mehr als 10 Passes gibt der Assembler
-  auf, um nicht in eine Endlosschleife zu geraten. Dafür lassen sich 
-  bestimmt schicke worst-cases konstruieren...
+  + Reassembler-Passes: meistens nur einer, mehrere können auftreten,
+    wenn sich durch den ersten Pass noch Adressen verschoben haben, so 
+    daß Sprünge kürzer codiert werden konnten.
 
-  Manchmal gibt TPUTUNER an dieser Stelle Fehlermeldungen aus, die
-  dazu führen, daß der betreffende Codeblock nicht geändert wird. Im 
-  Allgemeinen ist die Verwendung von Inline-Assembler daran schuld.
 
-`Unrecognized opcode xx'
-  Der Codeblock enthielt einen Befehl, den TPUTUNER nicht kennt. Das
-  sind z.B. die 386-Befehle, `test', Flag-Befehle, Port-I/O und String-
-  Befehle.
+Fehlermeldungen
+----------------
 
-`Warning: code block contains bad relocation entries'
-  Der Codeblock enthielt einen Relozierungs-Eintrag, den TPUTUNER
-  nicht verarbeiten kann. Solche Einträge entstehen zum Beispiel bei
-  `@foo: mov ax,offset @foo'. Das ergibt eine Code-absolute Referenz,
-  (CS-Const) die TPUTUNER deshalb nicht verwalten kann, da sich die
-  Adresse des Befehls während der Optimierung verschieben könnte.
-  Außerdem ist nicht sicher, ob die Adreßangabe im Quellcode anders
-  aussah (`mov ax,offset MyFunction+100').
+  Alle diese Meldungen führen dazu, daß der entsprechende Block nicht
+  angefaßt wird. Damit soll Code erkannt werden, den TPUTUNER kaputt
+  machen würde (I/O, Interrupt-Aufrufe, Daten im Codesegment, usw.)
 
-`Unrecognized relocation item at...'
-  Ein Relozierungseintrag stand an einer Stelle, an der TPUTUNER ihn
-  nicht erwartet hat. Zum Beispiel bei Sprungtabellen im Codesegment: 
-  "dw @foo, @bar, @baz", die tputuner als Befehl zu interpretieren
-  versucht.
+  `Unrecognized opcode xx'
+  `Direct interrupt access'
+  `FPU is not supported' und ähnliche
+    TPUTUNER kann nicht alle Befehle disassemblieren. Nicht erkannt
+    werden alle 386+-Befehle, `test', Flag-Befehle, Port-I/O,
+    String-Befehle.
 
-`Direct interrupt access'
-`FPU is not supported' und ähnliche
-  TPUTUNER kann keine Interrupt-Aufrufe und Fließkomma-Befehle
-  verwenden.
+  `Warning: code block contains bad relocation entries'
+    Relozierungseinträge sind Stellen, an denen der Linker eine
+    Adresse nachtragen muß. TPUTUNER alle Fälle behandeln, die Turbo
+    Pascal erzeugt, einige Inline-Assembler-Konstruktionen müssen
+    jedoch zurückgewiesen werden, z.B. `@foo: mov ax, offset @foo'.
+
+  `Unrecognized relocation item at...'
+    Relozierungen dürfen nur in 16-bit-Operanden auftreten. Eine
+    Relozierung woanders ist ein sicheres Zeichen für Daten im
+    Codesegment.
 
 
 Inline-Assembler
@@ -162,29 +143,28 @@ Optimierungen
 
 * Datenfluß-Analyse (--data-flow-analysis)
 
-  Wahrscheinlich wäre der richtige Name `reload optimisation', aber
-  `Datenfluß-Analyse' klingt einfach besser.
+  Eliminiert überflüssige Befehle, wenn die Ergebnisse, die sie
+  erzeugen, bereits ermittelt wurden. Das sind vor allem Ladebefehle,
+  aber auch Logikbefehle, wenn ein Operand 0 ist. Wahrscheinlich wäre
+  der richtige Name `reload optimisation', aber `Datenfluß-Analyse'
+  klingt einfach cooler ;-)
 
-  Eliminiert überflüssige Lade-Befehle. Diese kommen recht häufig vor, 
-  da Turbo Pascal selbst keine Befehls-übergreifenden Optimierungen
-  vornimmt. Beispiel:
-         p^.a := 1;
-         p^.a := 2;
-  wird zu
-         les di,[p]
-         mov [es:di+0], 1
-         les di,[p]
-         mov [es:di+2], 2
-  TPUTUNER streicht das zweite LES.
+  + Beispiel:
+        p^.a := 1;
+        p^.b := 2;
+    wird zu
+        les(2)    di, [ss:bp+6]
+        mov(2)    [es:di+0], 1
+        les(2)    di, [ss:bp+6]
+        mov(2)    [es:di+2], 2
+    TPUTUNER streicht das zweite LES.
 
-  Diese Optimierung ist für durchschnittlichen Turbo Pascal Code recht 
-  sicher, obwohl sich schicke Fehler-Situationen konstruieren lassen,
-  Stichwort `Aliasing':
+  + Fehlerbeispiel: Aliasing
         p := @a;
         a := b + 1;
         inc(p^);
         b := a + 1;
-  wird zu:
+    wird zu:
         lea(2)    ax, [ss:bp+8]            ; p := @a
         mov(2)    dx, ss
         mov(2)    [ss:bp+fffffffc], ax
@@ -197,50 +177,30 @@ Optimierungen
         mov(2)    ax, [ss:bp+8]        **  ; b := a + 1
         inc(2)    ax
         mov(2)    [ss:bp+6], ax
-  Dieser Code inkrementiert b dreimal. Der optimierte Code
-  inkrementiert b nur zweimal, da die mit ** markierte Zeile als
-  unnütz verworfen wird, schließlich enthält AX bereits den Wert von
-  [ss:bp+8].
 
-  Riskant wird es mit Assembler, wenn Unterprogramme Parameter in
-  Registern übernehmen. TPUTUNER löscht deswegen einen scheinbar
-  unnützen Befehl nur dann, wenn er sich sicher ist, wozu dieser
-  Befehl ursprünglich diente.
-		mov	si,offset foo
-		mov	di,si
-		call	bar  { Quelle in SI, Ziel in DI }
-  wird optimiert zu
-		mov	di,offset foo
-		call	bar
-  was falsch ist. TPUTUNER denkt, daß SI nur dazu geladen wurde, um DI 
-  zu initialisieren und ist sich sicher, die Verwendung von SI
-  gefunden zu haben.
+    Dieser Code inkrementiert b dreimal. Der optimierte Code
+    inkrementiert b nur zweimal, da die mit ** markierte Zeile als
+    unnütz verworfen wird, schließlich enthält AX bereits den Wert von
+    [ss:bp+8].
 
-  Diese Optimierung entfernt ebenfalls Arithmetikbefehle, wenn deren
-  Operanden bekannt sind. Speziell bei Longint-Arithmetik entstehen
-  hier u.U. Vorteile, da Turbo manchmal `and'-Befehle codiert, bei
-  denen ein Operand garantiert 0 ist.
+  + Fehlerbeispiel: Parameter in Registern
+                mov     si,offset foo
+                mov     di,si
+                call    bar  { Quelle in SI, Ziel in DI }
+    wird optimiert zu
+                mov     di, offset foo
+                call    bar
+    TPUTUNER nimmt an, daß SI nur für die Initialisierung von DI
+    geladen wurde, und ist sicher, alles über SI zu wissen.
 
 
 * Sprungketten entfernen (--reduce-jump-chains)
 
-  Damit werden Konstruktionen der Form
-		jmp	one
-		...
-	 one:	jmp	two
-		...
-	 two:	...
-  zu
-		jmp	two
-  reduziert. Das kommt zum Beispiel bei der üblichen Konstruktion
-         IF foo THEN
+  Wenn das Ziel eines Sprungs ein weiterer Sprungbefehl ist, wird
+  direkt zum Endziel gesprungen. Das kommt häufig bei Konstruktionen wie
+         IF foo THEN BEGIN
            IF bar THEN qux ELSE frob
-         ELSE fred;
-  recht häufig vor. Diese Optimierung sollte immer sicher
-  sein. Allerdings werden die in Assembler beliebten `jmp $+2'-Ketten
-  wegoptimiert. Das ist hoffentlich kein Problem, da diese üblicher-
-  weise zur Verzögerung von I/O benutzt werden - und die faßt TPUTUNER
-  nicht an.
+         END ELSE fred;
 
 
 * `Guckloch-Optimierungen' (--peephole-optimizations)
@@ -249,103 +209,74 @@ Optimierungen
   und Ersetzen' und sollte mit TP-Code sicher sein. Hier werden die
   Befehle einzeln in einem Umfeld von nicht mehr als 2 oder 3 anderen
   Befehlen betrachtet, daher ``Guckloch''. Ein Beispiel ist hier
-		cmp	ax, 0
+                cmp(2)  ax, 0
   wird zu
-		or	ax, ax
+                or(2)   ax, ax
   egal, in welchem Kontext.
 
-  An einigen Stellen macht diese Optimierung jedoch Annahmen über den
-  Code: Die Initialisierung einer FOR-Schleife wird verkürzt, und
-  in `LONGINT(value) * konstante' wird ein Bibliotheksaufruf entfernt.
+  Außerdem ersetzt diese Optimierung einige Aufrufe in die Unit SYSTEM 
+  durch Assembler-Instruktionen (siehe tpufmt.h), und modifiziert
+  gelegentlich den Initialisierungscode einer FOR-Schleife.
 
 
 * Unbenutzten Code entfernen (--remove-unused-code)
 
   Entfernt unreferenzierten Code, der unter anderem durch
-  Sprungketten-Entfernung entsteht. Sollte immer sicher sein, außer
-  mit schlimmen Assembler-Hacks:
-		call	foo
-		jmp	skip            { short jump }
-		db	'PSQR'          { Römische Legion }
-	 foo:	pop	bx		{ Rückkehradresse }
-		mov	al,cs:[bx+2] 	{ erstes Datenbyte }
-  Hier werden die Daten als unreferenziert entfernt.
-
-  Eigentlich sollte diese Optimierung auch einen Stackrahmen
-  entfernen, wenn dieser nicht benutzt wird. Das ist jedoch
-  problematisch mit eingeschachtelten Prozeduren und Destruktoren, und
-  außerdem selten anwendbar - es ist den Ärger nicht wert.
-
-  Diese Optimierung wird für das Vorziehen von Sprüngen (--early-jump) 
-  benötigt.
+  Sprungketten-Entfernung entsteht.
 
 
 * Sprünge vorziehen (--early-jump)
 
   Hier werden Sprünge eher durchgeführt, wenn am Ziel des Sprungs
-  dieselben Befehle durchgeführt werden wie vor dem Sprung:
-		cmp	[xxx],1		IF xxx=1 THEN
-		jne	skip
-		push	10		  func(10)
-		call	func
-		jmp	done		ELSE
-	skip:	push	9		  func(9);
-		call	func
-	done:
-  kann verkürzt werden zu
-		cmp	[xxx],1
-		jne	skip
-		push	10
-		jmp	done
-	skip:	push	9
-	done:	call	func
-  Wenn diese Optimierung verwendet wird, darf die Entfernung
-  unbenutzten Codes (`-U') nicht abgeschaltet werden.
+  dieselben Befehle durchgeführt werden wie vor dem Sprung. Das tritt
+  bei vielen Bedingungen zu, besonders wenn Strings oder Longints
+  beteiligt sind. TPUTUNER erkennt zwei Blöcke auch dann als gleich,
+  wenn sie sich in einem Befehl unterscheiden, den TPUTUNER
+  korrigieren kann. Wenn diese Optimierung verwendet wird, darf die
+  Entfernung unbenutzten Codes (`-U') nicht abgeschaltet werden.
 
-  Diese Optimierung ist bei jeder Art Bedingungen (IF-THEN-ELSE, CASE) 
-  interessant, da sie oft große Gemeinsamkeiten finden kann, speziell, 
-  wenn Strings oder Longints beteiligt sind.
-
-  TPUTUNER erkennt zwei Blöcke auch dann als gleich, wenn sie sich
-  in einem Befehl unterscheiden, den TPUTUNER korrigieren kann.
-		cmp	ax,1
-		jne	skip
-		mov	[xxx],2
-		jmp	done
-	skip:	mov	[xxx],ax
-	done:
-  wird zu
-		cmp	ax,1
-		jne	skip
-		mov	ax,2
-	skip:	mov	[xxx],ax
+  + Beispiel:
+                cmp     [xxx], 1        IF xxx=1 THEN
+                jne     skip
+                push    10                func(10)
+                call    func
+                jmp     done            ELSE
+        skip:   push    9                 func(9);
+                call    func
+        done:
+    kann verkürzt werden zu
+                cmp     [xxx], 1
+                jne     skip
+                push    10
+                jmp     done
+        skip:   push    9
+        done:   call    func
 
 
 * Sprünge verzögern (--late-jump)
 
   Diese Optimierung funktioniert ähnlich wie `--early-jump', hier
-  werden jedoch Sprünge verzögert:
-		cmp	[xxx],1		IF xxx=1 THEN
-		jne	skip
-		push	10		  Fred(10)
-		call	Fred
-		jmp	done		ELSE
-	skip:	push	10		  Barney(10);
-		call	Barney
-	done:
-  kann verkürzt werden zu
-		cmp	[xxx],1
-		push	10
-		je	skip
-		call	Fred
-		jmp	done
-	skip:	call	Barney
-	done:
-  Die Anwendungsgebiete ähneln denen der early-jump-Optimierung. Auch
-  hier darf die Entfernung unbenutzten Codes nicht deaktiviert werden.
-  Im Gegensatz zum Sprünge-Vorziehen ist jedoch hier Erfolg nicht
-  garantiert - in verschiedenen Fällen kommt diese Optimierung zwar
-  zum Einsatz, spart aber nichts am Code.
+  werden jedoch Sprünge verzögert. Im Gegensatz zu `--early-jump' wird 
+  hier jedoch nicht immer Code gespart, der sich ergebende Code ist
+  aber u.U. besser parallelisierbar.
+
+  + Beispiel:
+                cmp     [xxx],1         IF xxx=1 THEN
+                jne     skip
+                push    10                Fred(10)
+                call    Fred
+                jmp     done            ELSE
+        skip:   push    10                Barney(10);
+                call    Barney
+        done:
+    kann verkürzt werden zu
+                cmp     [xxx],1
+                push    10
+                je      skip
+                call    Fred
+                jmp     done
+        skip:   call    Barney
+        done:
 
 
 * Optimierung auf Größe (--size)
@@ -355,13 +286,13 @@ Optimierungen
   jedoch mit einer Geschwindigkeitseinbuße verbunden. TPUTUNER wird
   diese nur dann durchführen, wenn Sie die --size-Option angegeben
   haben. Beispiel:
-		mov	[foo], ss
-		mov	es, [foo]
+                mov     [foo], ss
+                mov     es, [foo]
   wird ohne diese Option unverändert gelassen, mit --size wird diese
   Sequenz zu
-		mov	[foo], ss
-		push	ss
-		pop	es
+                mov     [foo], ss
+                push    ss
+                pop     es
   was langsamer ist (mehr Speichertransfers), aber 2 Bytes kürzer. Den 
   `mov [foo],ss' kann TPUTUNER nicht entfernen, da der Wert in [foo]
   evtl. später noch gebraucht wird.
@@ -370,34 +301,33 @@ Optimierungen
 * Register-Allokierung (--reg-alloc)
 
   Diese Optimierung veranlaßt TPUTUNER dazu, häufig benötigte Werte oder
-  Adressen in Registern abzulegen. Vorteile entstehen hier z.B. bei der
-  Initialisierung von Datensätzen:
-		var1 := 7;
-		var2 := 7;
-		var3 := 7;
-  wird von Turbo Pascal zu
-		mov	[var1],7
-		mov	[var2],7
-		mov	[var3],7
-  und von TPUTUNER zu
-		mov	cx,7
-		mov	[var1],cx
-		mov	[var2],cx
-		mov	[var3],cx
-  Letztere Sequenz ist kürzer (von der Codegröße her) und nicht unbedingt
-  langsamer (da weniger Speichertransfers und in anderen Konstellationen
-  als im Beispiel u.U. besser parallelisierbar). Diese Optimierung kann
-  nur innerhalb eines `basic blocks' stattfinden, was eine Codesequenz
-  ist, die durch Labels und/oder Sprünge in andere Funktionen begrenzt
-  ist.
+  Adressen in Registern abzulegen. Das können Konstanten, lokale
+  Variablen und Adressen sein. In kleinen Prozeduren ohne
+  Unterprogrammaufrufe werden lokale Variablen u.U. komplett in
+  Register gelegt.
 
-  Diese Optimierung wird auch, in kleinen Prozeduren ohne Unterprogramm-
-  aufrufe, lokale Variablen komplett in Register legen.
+  Diese Optimierung ist standardmäßig deaktiviert, da sie sehr
+  zeitaufwendig ist. Da sie stellenweise Ergebnisse der DFA rückgängig
+  macht (und dabei *immer* bessere Ergebnisse liefert), kann sie nur
+  angewendet werden, wenn die DFA keine Änderungen mehr bringt.
 
-  Diese Optimierung ist standardmäßig deaktiviert, da sie sehr zeitauf-
-  wendig ist. Da sie stellenweise Ergebnisse der DFA rückgängig macht (und
-  dabei *immer* bessere Ergebnisse liefert), kann sie nur angewendet
-  werden, wenn die DFA keine Änderungen mehr bringt.
+  + Beispiel:
+                var1 := 7;
+                var2 := 7;
+                var3 := 7;
+    wird von Turbo Pascal zu
+                mov     [var1],7
+                mov     [var2],7
+                mov     [var3],7
+    und von TPUTUNER zu
+                mov     cx,7
+                mov     [var1],cx
+                mov     [var2],cx
+                mov     [var3],cx
+
+    Letztere Sequenz ist kürzer (von der Codegröße her) und nicht
+    unbedingt langsamer (da weniger Speichertransfers und in anderen
+    Konstellationen als im Beispiel u.U. besser parallelisierbar).
 
 
 * Ladebefehle sortieren (--sort-moves)
@@ -420,25 +350,26 @@ Optimierungen
 
   Ungefähr das, was die CSE in "richtigen" Compilern macht: wiederholende
   Codeschnipsel weglassen. Wenn TPUTUNER eine Codefolge der Form
-	<codeA>
-	<codeB>
-	<codeA>
+        <codeA>
+        <codeB>
+        <codeA>
   findet, wobei <codeB> das Ergebnis von <codeA> bestehen läßt, kann
   das zweite <codeA> weggelassen werden. Z.B. wird `p^.q^.x := p^.q^.y;'
   von Turbo Pascal zu
-	les	di, [p]             \  codeA
-	les	di, [es:di+10]      /
-	mov	ax, [es:di]         >  codeB
-	les	di, [p]             \
-	les	di, [es:di+10]      /  codeA
-	mov	[es:di], ax
+        les     di, [p]             \  codeA
+        les     di, [es:di+10]      /
+        mov     ax, [es:di]         >  codeB
+        les     di, [p]             \
+        les     di, [es:di+10]      /  codeA
+        mov     [es:di+2], ax
   Die zweite Adreßrechnung kann weggelassen werden.
 
   Diese Optimierung ist standardmäßig ausgeschaltet, weil
   + sie langsam ist (die Suche nach gleichen Codestücken ist mindestens
     O(n^2))
   + hier Zeiger-Aliasing-Probleme besonders deutlich werden. TPUTUNER hat
-    eine ultrasimple Aliasing-Erkennung. Wie leicht man diese aushebeln
+    eine ultrasimple Aliasing-Erkennung für diese Optimierung (und gar 
+    keine Aliasing-Erkennung für den Rest!). Wie leicht man diese aushebeln
     kann, verbleibt zu ermitteln: wenn sowohl <codeA> als auch <codeB>
     auf eine Speicherzelle [es:di+10] schreiben, wird Aliasing angenommen.
 
@@ -450,115 +381,75 @@ Optimierungen
   eine komplette Unit. Allerdings muß sie dazu sehr konservativ
   vorgehen, um nicht andere Konstanten (float) zu zerstören.
 
-  Die Optimierung kann das fertige Compilat *vergrößern*, wenn Teile
-  einer hiermit behandelten Unit sonst unbenutzt geblieben wären.
+  NOTE 10/Okt/2000: Vermutlich werde ich diese Optimierung jedoch
+  wieder entfernen. Sie zu schreiben ist ziemlich bescheuert, und es
+  bringt nicht soooo viel.
 
 
 * Nutzung von 386er-Befehlen (--386)
 
-  Mit dieser Optimierung nutzt TPUTUNER Befehle des 386ers zur Optimie-
-  rung des Codes. Der erzeugte Code ist damit auf 286ern nicht mehr
-  lauffähig. Standardmäßig erzeugt TPUTUNER nur 286er-Code.
+  Erzeugt 386er-Befehle:
+  + jcc j16
+  + setcc r/m8
+  + push i32, push m32
+  + mov r/m32, i32
 
-  TPUTUNER nutzt nur einen kleinen Ausschnitt des 386er-Befehlssatz:
-  - jcc j16
-  - setcc r/m8
-  - push i32, push m32
-  - mov r/m32, i32
+  Die 32-bit-Befehle tauchen in den Debuglistings nicht auf, sie
+  werden als zwei 16-bit-Befehle mit derselben Adresse gelistet:
+        98:  push(2)   [es:di+ffffffea]
+        98:  push(2)   [es:di+ffffffe8]
+  entspricht einem `push(4) [es:di+ffffffe8]'.
 
-  Diese Optimierung ist üblicherweise sicher, auch wenn sich auch hier,
-  unter Benutzung der Flags, häßliche Situationen konstruieren lassen.
-
-  Die push/mov-Befehle tauchen in den Debuglistings nicht auf, sie
-  werden vom Assembler erzeugt. Man erkennt sie daran, daß zwei
-  Befehle den selben Offset zugewiesen erhalten:
-	98:  push(2)   [es:di+ffffffea]
-	98:  push(2)   [es:di+ffffffe8]
-  Hier hat TPUTUNER einen `push(4) [es:di+ffffffe8]'-Befehl
-  erzeugt. TPUTUNER kann so bearbeitete Units nicht wieder einlesen!
+  TPUTUNER kann so bearbeitete Units nicht wieder einlesen!
 
 
 * Was TPUTUNER nicht tut...
 
-  Vorausberechnung von Konstanten: das sollte der Turbo Pascal
-  Compiler im Rahmen seiner Möglichkeiten getan haben.
+  + Vorausberechnung von Konstanten: das sollte der Turbo Pascal
+    Compiler im Rahmen seiner Möglichkeiten getan haben.
 
-  Variablen eliminieren: ist nicht möglich. TPUTUNER erhält alle
-  Befehle, die Daten in den Hauptspeicher legen. TPUTUNER kann nicht
-  erkennen, welche Variablen einzeln und welche als Komponenten
-  eines Record/Array angesprochen werden. Wenn in
-                a.Feld1 := 1;
-                fiddle(a);
-  der Schreibzugriff auf a als unnütz entfernt würde (das Feld wird
-  nirgends mehr gelesen), wäre das fatal. Eine Ausnahme ist die Ent-
-  fernung von Schreibzugriffen in den Stackrahmen am Ende einer
-  Funktion - diese Variablen sind eh nicht mehr erreichbar. TPUTUNER
-  kann stellenweise die implizite @Result-Variable komplett
-  eliminieren.
+  + Loop Unrolling (Schleifen aufrollen)
 
-  Loop Unrolling (Schleifen aufrollen), Function Inlining: Diese
-  Optimierungen geben zwar den größten Geschwindigkeitszuwachs,
-  TPUTUNER weiß aber zu wenig über den Code, um diese Optimierungen
-  durchführen zu können. Außerdem würde Code dadurch größer werden.
+  + Function Inlining (Ideen für einen 08/15-dumbfire-inliner bestehen 
+    aber)
 
-  EXE-Dateien optimieren: *DAS* ist nun wirklich nicht ohne weiteres
-  möglich. In TPU-Dateien sind noch ein paar Informationen enthalten,
-  welcher Wert nun eine Konstante und welcher eine Adresse ist. Wenn
-  TPUTUNER in einer EXE-Datei eine Funktion verkürzen würde, wüßte er
-  nicht, welche Adressen er anpassen muß und welche als literale
-  Konstanten im Programm standen.
+  + EXE-Dateien optimieren. Bei TPUs steht an den Konstanten noch
+    dran, welche eine Adresse ist und welche nicht -- bei EXEn nicht.
 
-  Garantieren, daß das Programm nachher noch funktioniert: TPUTUNER
-  ist zwar *relativ* sicher, aber man kann ja nie wissen...
-
-  Generell gilt jedoch: problematischer Code outet sich jedoch
-  hoffentlich schon vorher durch Befehle, die tputuner nicht kennt
-  (in/out, lodsb, movsb, cli, ...) und somit in Ruhe läßt. Wenn die
-  Daten im Beispiel zu --remove-unused-code z.B. ungültige Befehle
-  enthielten (``db "PSQR"'' ist eine Folge PUSH Befehle), werden sie
-  von TPUTUNER nicht angefaßt.
-
-  Um sicher zu sein, kann man ja die Datenfluß-Analyse abschalten
-  (--no-data-flow-analysis, -D), damit gehen aber die meisten
-  Optimierungen verloren.
+  + Aliasing-Erkennung: TPUTUNER geht davon aus, daß kein Wert über
+    zwei Zugriffspfade erreichbar ist, also z.B. über zwei
+    verschiedene Zeiger, oder über einen Zeiger und als feste
+    Adresse. Quasi wird angenommen, alle Zeiger wären mit dem
+    C-Modifier `restrict' definiert; keine Variable ist `volatile'
+    (der Turbo-Pascal-Compiler nimmt genau das Gegenteil an).
 
 
 Ergebnisse
 -----------
 
-  TPUTUNER kann die meisten Units um 2-5% verkürzen. Ich halte das 
-  für ein ganz ansehnliches Ergebnis. Mehr sollte man nicht erwarten,
-  schließlich wird die Programmstruktur weitestgehend intakt
-  gelassen. TPUTUNER führt kein `function-inlining', `loop unrolling'
-  oder ähnliches durch.
+  TPUTUNER kann die meisten Units um 2-10% verkürzen. Ich halte das 
+  für ein ganz ansehnliches Ergebnis.
 
-  Beispiel-Ergebnis: Ein größeres Programmprojekt (40 KLOC), optimiert
-  wurde nur der `produktive Teil', nicht die Laufzeitbibliothek (weitere
-  5 KLOC).
+  Beispiel-Ergebnisse:
 
-  Normaler Turbo Pascal Code:
+  <FILLME>
+  PCC (ca. Version 0.99.5):
+  + ca. 40 KLOC + 5 KLOC Bibliothekscode (nicht optimiert)
+  + Normaler Turbo Pascal Code:
      cc.exe  112144
      cc.ovr  352649
            = 464793
-  Optimierung mit `tputuner -sE':
-     cc.exe  110416
-     cc.ovr  342699
-           = 453155 (11638 = 2.5% gespart)
-  Optimierung mit `tputuner -3sE':
+  + Optimierung mit `tputuner -3sE':
      cc.exe  110256
      cc.ovr  341475
            = 451731 (13062 = 2.8% gespart)
 
-  Inzwischen wurden TPUTUNER und das Programm weiterentwickelt. Mit
-  --early-jump spart TPUTUNER circa 23 kByte (23989 von 508830 Bytes = 
-  4.7%).
-
   Die wichtigsten Optimierungen sind Datenflußanalyse (`-a') und
-  Sprünge vorziehen (`-e'). Die anderen Optimierungen alleine bringen
-  nur marginale Verbesserungen. Alle zusammen angewendet können jedoch 
-  das Ergebnis verbessern: so kann die Sprungkettenverfolgung einige
-  Sprünge unreferenziert machen, so daß sie beim Entfernen unbenutzten 
-  Codes Speicherplatz freigeben.
+  Sprünge vorziehen (`-e') sowie evtl. CSE (`-g'). Die anderen
+  Optimierungen alleine bringen nur marginale Verbesserungen. Alle
+  zusammen angewendet können jedoch das Ergebnis verbessern: so kann
+  die Sprungkettenverfolgung einige Sprünge unreferenziert machen, so
+  daß sie beim Entfernen unbenutzten Codes Speicherplatz freigeben.
 
 
 TPUTUNER unterstützen
