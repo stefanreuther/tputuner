@@ -30,10 +30,12 @@ Aufruf
   -p, --peephole-optimizations
   -u, --remove-unused-code
   -e, --early-jump
-  -l, --late-jmp
+  -l, --late-jump
   -r, --reg-alloc
+  -m, --sort-moves
+  -c, --combine-strings
        Legen die Art der Optimierung fest. Standardmäßig sind die
-       Optionen eingeschaltet (bis auf -r), ausgeschaltet werden
+       Optionen eingeschaltet (bis auf -r, -c), ausgeschaltet werden
        sie mit `-A' (Großbuchstaben für kurze Optionen) bzw.
        `--no-data-flow-analysis'.
        Abschalten einer Optimierung beeinflußt u.U. jedoch auch die
@@ -154,7 +156,7 @@ Inline-Assembler
   Eingebundene .OBJ-Dateien werden i.A. nicht optimiert, da eine
   .OBJ-Datei von Turbo Pascal einen einzigen Code-Block mit mehreren
   Eintrittspunkten zugewiesen bekommt. In Assembler gelten auch die
-  üblichen Gültigkeitsregeln nicht, so daß man fröhlich zwischen
+  üblichen Sichtbarkeitsregeln nicht, so daß man fröhlich zwischen
   Prozeduren hin- und herspringen kann, was TPUTUNER nicht handhaben
   kann.
 
@@ -165,7 +167,7 @@ Optimierungen
 * Datenfluß-Analyse (--data-flow-analysis)
 
   Wahrscheinlich wäre der richtige Name `reload optimisation', aber
-  hier werden doch einige Daten durch's Programm verfolgt...
+  `Datenfluß-Analyse' klingt einfach besser.
 
   Eliminiert überflüssige Lade-Befehle. Diese kommen recht häufig vor, 
   da Turbo Pascal selbst keine Befehls-übergreifenden Optimierungen
@@ -402,18 +404,55 @@ Optimierungen
   werden, wenn die DFA keine Änderungen mehr bringt.
 
 
+* Ladebefehle sortieren (--sort-moves)
+
+  Sortiert `mov'-Befehle. Dadurch können diese besser zu 16- und
+  32-bit Operationen zusammengefasst werden. Allerdings werden damit
+  Lock-Variablen ad absurdum geführt:
+        lock := TRUE;
+        critical1 := 1;
+        critical2 := 42;
+        lock := FALSE;
+  sortiert, je nach Adreßlage, die beiden Zuweisungen an lock an den
+  Anfang oder das Ende.
+
+  Diese Optimierung ist Bestandteil der Peephole-Optimierung, also muß 
+  letztere eingeschaltet sein, um --sort-moves zu verwenden.
+
+
+* String-Kombinierung (--combine-strings)
+
+  (noch nicht fertig) Turbo Pascal faßt gleiche Stringkonstanten nur
+  innerhalb einer Funktion zusammen. Diese Optimierung tut dies für
+  eine komplette Unit. Allerdings muß sie dazu sehr konservativ
+  vorgehen, um nicht andere Konstanten (float) zu zerstören.
+
+  Die Optimierung kann das fertige Compilat *vergrößern*, wenn Teile
+  einer hiermit behandelten Unit sonst unbenutzt geblieben wären.
+
+
 * Nutzung von 386er-Befehlen (--386)
 
   Mit dieser Optimierung nutzt TPUTUNER Befehle des 386ers zur Optimie-
   rung des Codes. Der erzeugte Code ist damit auf 286ern nicht mehr
   lauffähig. Standardmäßig erzeugt TPUTUNER nur 286er-Code.
 
-  TPUTUNER nutzt nur einen kleinen Ausschnitt des 386er-Befehlssatz,
-  genauer gesagt, die bedingten NEAR-Sprünge und die SETcc-Befehle. Ins-
-  besondere werden keine 32-bit Befehle benutzt.
+  TPUTUNER nutzt nur einen kleinen Ausschnitt des 386er-Befehlssatz:
+  - jcc j16
+  - setcc r/m8
+  - push i32, push m32
+  - mov r/m32, i32
 
   Diese Optimierung ist üblicherweise sicher, auch wenn sich auch hier,
   unter Benutzung der Flags, häßliche Situationen konstruieren lassen.
+
+  Die push/mov-Befehle tauchen in den Debuglistings nicht auf, sie
+  werden vom Assembler erzeugt. Man erkennt sie daran, daß zwei
+  Befehle den selben Offset zugewiesen erhalten:
+	98:  push(2)   [es:di+ffffffea]
+	98:  push(2)   [es:di+ffffffe8]
+  Hier hat TPUTUNER einen `push(4) [es:di+ffffffe8]'-Befehl
+  erzeugt. TPUTUNER kann so bearbeitete Units nicht wieder einlesen!
 
 
 * Was TPUTUNER nicht tut...
@@ -544,6 +583,17 @@ TPUTUNER unterstützen
   kann nicht feststellen, daß `a' und `b' dasselbe sind.
 
 
+* Variablen zusammenfassen
+
+  Variablen, die oft gemeinsam genutzt werden, in den selben VAR-Block 
+  direkt beieinander packen. Bei
+     VAR color, mode : BYTE;
+  kann TPUTUNER aus
+     color := 1;
+     mode  := 0;
+  einen mov-Befehl machen.
+
+
 Debuglistings
 --------------
 
@@ -606,4 +656,9 @@ Debuglistings
   bzw.    `command /c ldiff blockXX.pass0 blockXX.pass1 | more'
   (Batch-Dateien kann man nicht mit Pipes verwenden)
 
+
+Autor
+------
+
+  Stefan Reuther, <Streu@gmx.de>
 
