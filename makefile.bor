@@ -1,0 +1,24 @@
+#
+#  Simple-minded makefile for tputuner / Borland syntax
+#
+
+EXENAME = tputuner.exe
+CFLAGS = -Wall -ansi -pedantic -O2 -g
+GCC = gxx
+
+# No user-serviceable parts below
+OBJECTS = tputuner.o optimize.o insn.o disassemble.o codewriter.o assemble.o \
+           dfa.o global.o peephole.o regalloc.o strcomb.o cse.o
+LIBS =
+
+$(EXENAME): $(OBJECTS)
+	$(GCC) $(CFLAGS) -o $(EXENAME) @&&!
+$(OBJECTS) $(LIBS)
+!
+
+.cc.o:
+	$(GCC) $(CFLAGS) -o $*.o -c $*.cc
+
+clean:
+	-del *.o
+	-del $(EXENAME)
