@@ -16,6 +16,8 @@
 #include "optimize.h"
 #include "global.h"
 
+extern int sys_unit_offset;     // in tputuner.cc
+
 typedef enum {
     A_BAD,         // Funktion paßt nicht auf insn
     A_CONTINUE,    // keine Änderung, trotzdem weitermachen
@@ -56,16 +58,10 @@ TAction check_jump(CInstruction* p)
     
     if(p->args[0]->label == p->next->next) {
         /* inverse conditional jump */
-
-        /* kann der Sprung umgedreht werden? */
-        int distance = p->next->args[0]->label->ip - p->ip;
-        if((distance > -123 && distance < 127) || do_386) {
-            /* ja! */
-            CInstruction* n = p->next;
-            n->insn = I_JCC;
-            n->param = p->param ^ 1;
-            return A_DELETE;
-        }
+        CInstruction* n = p->next;
+        n->insn = I_JCC;
+        n->param = p->param ^ 1;
+        return A_DELETE;
     } else if(*p->args[0] == *p->next->args[0]) {
         /* Zwei Sprünge - eine Meinung */
         return A_DELETE;
@@ -631,6 +627,51 @@ TAction check_zero_arit(CInstruction* p)
     }
 }
 
+/*
+ *  cwd
+ *  mov cx,wert
+ *  xor bx,bx
+ *  call <un=sys_unit_offset, rt=30, rb=28, ro=0>
+ *  => mov cx,wert
+ *     imul cx
+ */
+TAction check_cwd_longmul(CInstruction* p)
+{
+    if(p->insn != I_CWD)
+        return A_BAD;
+    
+    CInstruction* movcx = p->next;
+    if(!movcx || movcx->insn!=I_MOV || !movcx->args[0]->is_reg(rCX)
+       || movcx->args[1]->type != CArgument::IMMEDIATE
+       || movcx->args[1]->reloc || (movcx->args[1]->immediate & 0x8000))
+        return A_BAD;
+
+    CInstruction* xorbx = movcx->next;
+    if(!xorbx || xorbx->insn != I_XOR || !xorbx->args[0]->is_reg(rBX)
+       || !xorbx->args[1]->is_reg(rBX))
+        return A_BAD;
+
+    CInstruction* call = xorbx->next;
+    if(!call || call->insn != I_CALLF || call->args[0]->type != CArgument::IMMEDIATE)
+        return A_BAD;
+    CRelo* r = call->args[0]->reloc;
+    if(!r || r->unitnum!=sys_unit_offset || r->rtype!=0x30 || r->rblock != 0x28
+       || r->rofs != 0)
+        return A_BAD;
+
+    cout << "X";
+    delete xorbx->args[0];
+    delete xorbx->args[1];
+    delete xorbx->args[2];
+    xorbx->args[0] = new CArgument(rCX);
+    xorbx->args[1] = xorbx->args[2] = 0;
+    xorbx->insn = I_IMUL;
+    xorbx->next = call->next;
+    xorbx->next->prev = xorbx;
+    delete call;
+    return A_DELETE;
+}
+
 TAction last_function(CInstruction* i)
 {
     return A_CONTINUE;
@@ -651,6 +692,7 @@ TAction (*functions[])(CInstruction* i) = {
     check_for_init,
     check_maybe_unary,
     check_zero_arit,
+    check_cwd_longmul,
     last_function };
 
 /*
