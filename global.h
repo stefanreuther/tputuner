@@ -20,6 +20,7 @@ extern bool do_late_jmp;     // Sprünge nach hinten ziehen
 extern bool do_reg_alloc;    // Register-Allokierung
 extern bool do_string_comb;  // Strings kombinieren
 extern bool do_sort_moves;   // movs sortieren
+extern bool do_the_cse;      // `CSE'
 
 class CCodeBlock;
 class CNewCode;
