@@ -567,7 +567,7 @@ void register_allocation(CInstruction* oinsn)
                     break;
                  default:;
                 }
-        if(p->insn == I_MUL || p->insn == I_DIV)
+        if(p->insn == I_MUL || p->insn == I_DIV || p->insn == I_IMUL || p->insn == I_IDIV)
             regs_used[rAX] = regs_used[rDX] = true;
     }
 

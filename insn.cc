@@ -667,7 +667,8 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
 		} else {
 		    /* mov rm16,i16 */
                     if(do_386 && next && next->insn==I_MOV && next->args[0]->type==CArgument::MEMORY
-                       && next->args[1]->type==CArgument::IMMEDIATE) {
+                       && next->args[1]->type==CArgument::IMMEDIATE
+                       && next->opsize == 2) {
                         args[0]->inc_imm(2);
                         if(*args[0] == *next->args[0]) {
                             //cout << "{3}";
