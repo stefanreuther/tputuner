@@ -170,7 +170,7 @@ TAction check_zerotest_jb(CInstruction* p)
  */
 TAction check_smalladd(CInstruction* p)
 {
-    if(p->insn!=I_ADD || p->insn!=I_SUB || p->opsize!=2
+    if((p->insn!=I_ADD && p->insn!=I_SUB) || p->opsize!=2
        || p->args[1]->type!=CArgument::IMMEDIATE || p->args[1]->reloc!=0)
         return A_BAD;
 
@@ -184,7 +184,9 @@ TAction check_smalladd(CInstruction* p)
         return A_RESCAN;
     }
 
-    if(!flag_check(p->next)) return A_BAD; // Flags beachten
+    if(!flag_check(p->next)) {
+        return A_BAD; // Flags beachten
+    }
     if(p->args[1]->immediate==0) return A_DELETE;
 
     /* können wir optimieren? */
@@ -529,18 +531,31 @@ TAction check_push_reg(CInstruction* p)
 }
 
 /*
- *  Mehrere shl's zu einem verbinden
+ *  shl foo,N
+ *  shl foo,M
+ *  => shl foo, N+M
  *  (passiert bei Arrayindizierung pword^[2*i])
+ *
+ *  shl reg,1
+ *  => add reg,reg
  */
 TAction check_shift(CInstruction* p)
 {
-    if(p->insn == I_SHL && p->next->insn == I_SHL
-       && p->args[1]->type == CArgument::IMMEDIATE
-       && p->next->args[1]->type == CArgument::IMMEDIATE
-       && !p->args[1]->reloc && !p->next->args[1]->reloc
-       && *p->args[0] == *p->next->args[0]) {
-        p->next->args[1]->immediate += p->args[1]->immediate;
-        return A_DELETE;
+    if(p->insn == I_SHL && p->args[1]->type == CArgument::IMMEDIATE
+       && !p->args[1]->reloc) {
+        if(p->next->insn == I_SHL      
+           && p->next->args[1]->type == CArgument::IMMEDIATE
+           && !p->next->args[1]->reloc
+           && *p->args[0] == *p->next->args[0]) {
+            p->next->args[1]->immediate += p->args[1]->immediate;
+            return A_DELETE;
+        }
+        if(p->args[1]->is_immed(1) && p->args[0]->type == CArgument::REGISTER) {
+            delete p->args[1];
+            p->args[1] = new CArgument(*p->args[0]);
+            p->insn = I_ADD;
+            return A_RESCAN;
+        }
     }
     return A_BAD;
 }
