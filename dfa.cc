@@ -459,6 +459,11 @@ bool flag_check(CInstruction* insn)
          case I_JCC:
          case I_SETCC:
 	    return false;
+         case I_JMPF:
+         case I_JMPN:
+            /* better safe than sorry. Happens when CSE/early-jump
+               combines two conditional blocks (ChartUsr::RecalcShip) */
+            return false;
          default:
 	    break;
 	}
