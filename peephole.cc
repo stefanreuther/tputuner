@@ -16,6 +16,7 @@
 #include "optimize.h"
 #include "global.h"
 #include "tpufmt.h"
+#include "cse.h" /* für compute_insn_dep() */
 
 extern int sys_unit_offset;     // in tputuner.cc
 
@@ -840,6 +841,94 @@ TAction check_push_pop(CInstruction* i)
     return A_DELETE;
 }
 
+/*
+ *  arit r1, irgendwas    => mov r2, r1
+ *  mov  r2, r1              arit r2, irgendwas
+ *
+ *  arit r1, r1           => mov r2, r1
+ *  mov  r2, r1              arit r2, r2
+ *
+ *  mov  r1, irgendwas    => mov r2, irgendwas
+ *  mov  r2, r1
+ *
+ *  wenn zulässig (i.e., r1 wird nicht mehr benutzt)
+ */
+TAction check_reg_swap(CInstruction* i)
+{
+    if(!i->args[0] || i->args[0]->type != CArgument::REGISTER
+       || !i->next || i->next->insn != I_MOV)
+        return A_BAD;
+    
+    switch(i->insn) {
+     case I_MOV:
+        break;
+     case I_ADD:
+     case I_ADC:
+     case I_SUB:
+     case I_SBB:
+     case I_OR:
+     case I_XOR:
+     case I_AND:
+     case I_CMP:
+        if(i->args[0]->is_seg_reg())
+            return A_BAD;
+        break;
+     default:
+        return A_BAD;
+    }
+
+    CInstruction* mov = i->next;
+    if(*i->args[0] != *mov->args[1] || mov->args[0]->type != CArgument::REGISTER)
+        return A_BAD;
+
+    TRegister r1 = i->args[0]->reg;
+    TRegister r2 = mov->args[0]->reg;
+
+    /* Form stimmt; Abhängigkeiten prüfen */
+    if(i->args[1]->uses_reg(r2) || i->args[1]->uses_reg_part(r2))
+        return A_BAD;
+
+    CInstruction* p = mov->next;
+    OperandSet in, out;
+    while(1) {
+        if(!p || is_break(p))
+            return A_BAD;       // nicht beweisbar sicher
+        compute_insn_dep(in, out, p);
+        /* unsicher, wenn
+           - in enthält r1 oder Teil oder Übermenge von r1
+           sicher, wenn
+           - out überschreibt r1 oder Übermenge von r1 */
+        in.fix_regs();
+        if(in.regs & (1 << r1))
+            return A_BAD;       // beweisbar nicht sicher
+        out.fix_regs_conservative();
+        if(out.regs & (1 << r1))
+            break;
+        p = p->next;
+    }
+
+    /* ok --- durchführen */
+    cout << "MOVSWAP@" << hex << i->ip << dec << endl;
+    if(i->insn == I_MOV) {
+        delete mov->args[1];
+        mov->args[1] = new CArgument(*i->args[1]);
+        return A_DELETE;
+    } else {
+        CArgument* arg2 =
+            i->args[1]->is_reg(r1) ? new CArgument(r2)
+                                   : new CArgument(*i->args[1]);
+        CInstruction* a = new CInstruction(i->insn,
+                                           new CArgument(*mov->args[0]),
+                                           arg2);
+        a->next = mov->next;
+        mov->next = a;
+        a->prev = mov;
+        if(a->next)
+            a->next->prev = a;
+        return A_DELETE;
+    }
+}
+
 TAction last_function(CInstruction* i)
 {
     return A_CONTINUE;
@@ -864,6 +953,7 @@ TAction (*functions[])(CInstruction* i) = {
     check_double_mov,
     check_mov_pop,
     check_push_pop,
+    check_reg_swap,
     last_function
 };
 
