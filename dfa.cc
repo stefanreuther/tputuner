@@ -197,18 +197,28 @@ TValue* CValueIterator::get_next()
     return 0;
 }
 
-/*
- *  Transfer / anderer Befehl mit unbekannten Auswirkungen
- */
-void set_unknown()
+void set_unknown_regs()
 {
     for(int i=0; i<rMAX; i++)
 	values[i].clear();
+}
+
+void set_unknown_stack()
+{
     while(stack) {
 	TValue* p = stack;
 	stack = stack->next;
 	delete p;
     }
+}
+
+/*
+ *  Transfer / anderer Befehl mit unbekannten Auswirkungen
+ */
+void set_unknown()
+{
+    set_unknown_regs();
+    set_unknown_stack();
 }
 
 /*
@@ -347,7 +357,18 @@ void use_mem(CArgument* a)
     if(a->type != CArgument::MEMORY) return;
     if(a->memory[0] != rNONE) values[a->memory[0]].used = true;
     if(a->memory[1] != rNONE) values[a->memory[1]].used = true;
-    values[a->segment].used = true;
+
+    TRegister def_seg = (a->uses_reg(rBP) ? rSS : rDS);
+    if(a->segment != def_seg && values[def_seg].type != TValue::UNKNOWN
+       && values[a->segment].type == values[def_seg].type
+       && *values[a->segment].value == *values[def_seg].value)
+    {
+        values[a->segment].known = true;
+        values[def_seg].used = true;
+        a->segment = def_seg;
+        changed = true;
+    } else
+        values[a->segment].used = true;
 }
 
 /*
@@ -407,7 +428,8 @@ void optimize_argument(int os, CArgument*& a, bool allow_const)
 {
     if(os==2 && (is_safe_mem(a) || a->type==CArgument::IMMEDIATE)) {
 	for(int i=rAX; i<=rDI; i++) {
-	    if(values[i].type==TValue::MEMORY && *values[i].value==*a) {
+	    if((values[i].type==TValue::MEMORY/* || values[i].type==TValue::CONSTANT*/)
+               && *values[i].value==*a) {
 		/* es ist ein Speicheroperand, den wir schon in einem Register
 		 * haben */
 		delete a;
@@ -518,7 +540,7 @@ CInstruction* optimize_mov(CInstruction* insn)
 	    /*
 	     * mov reg,[mem]
 	     */
-	    for(int i=rAX; i<=rDI; i++) {
+	    for(int i=rAX; i<=rDI; i++/*rDS; (i==rDI) ? (i=rES) : (i++)*/) {
 		if(values[i].type==TValue::MEMORY && *values[i].value==*insn->args[1]) {
 		    /* wir haben den Wert schon in einem Register */
 		    /* ersetze mov r,m durch mov r,r */
@@ -528,6 +550,21 @@ CInstruction* optimize_mov(CInstruction* insn)
 		    return insn;
 		}
 	    }
+            for(int i=rES; i<=rDS; i++) {
+                if(values[i].type==TValue::SEGMENT) {
+                    values[i].value->inc_imm(+2);
+                    bool ok = *values[i].value == *insn->args[1];
+                    values[i].value->inc_imm(-2);
+                    if(ok) {
+                        /* wir haben den Wert schon in einem Segment-Register */
+                        /* ersetze mov r,m durch mov r,r */
+                        delete insn->args[1];
+                        insn->args[1] = new CArgument(TRegister(i));
+                        changed = true;
+                        return insn;
+                    }
+                }
+            }
 	    /* wir haben den Wert noch nicht */
 	    values[insn->args[0]->reg].set_mem(insn, insn->args[1]);
 	} else {
@@ -1127,6 +1164,7 @@ void data_flow_analysis(CInstruction* insn)
 
     while(insn) {
 	cur_ip = insn->ip;
+        
 	switch(insn->insn) {
          case I_LABEL:
          case I_JMPN:
@@ -1218,5 +1256,44 @@ void data_flow_analysis(CInstruction* insn)
 	}
 	insn = insn->next;
     }
+}
+
+bool can_modify_reg(CInstruction* p, TRegister r)
+{
+    while(p) {
+        switch(p->insn) {
+         case I_IMUL:
+            if(!p->args[2]) {
+                /* ein-Operand-Form wird nicht unterstützt */
+                return false;
+            }
+            /* FALLTHROUGH */
+         case I_MOV:
+         case I_LEA:
+         case I_LES:
+         case I_LDS:
+            if(p->args[1]->uses_reg_part(r))
+                return false;
+            if(p->args[0]->is_reg(r))
+                return true;
+            break;
+         case I_JMPN:
+            if(p->args[0]->type == CArgument::LABEL)
+                p = p->args[0]->label;
+            else
+                return false;
+            break;
+         case I_JCC:
+            if(!can_modify_reg(p->args[0]->label->next, r))
+                return false;
+            break;
+         case I_LABEL:
+            break;
+         default:
+            return false;
+        }
+        p = p->next;
+    }
+    return true;
 }
 
