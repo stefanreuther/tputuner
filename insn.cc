@@ -439,10 +439,10 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
 	    /* push imm */
 	    if(args[0]->is_byte_imm()) {
                 if(do_386 && next && next->insn==I_PUSH) {
-                    if(next->args[0]->is_byte_imm() &&
+                    if(next->args[0]->is_immed() && next->args[0]->is_byte_imm() &&
                        ((next->args[0]->immediate>=0 && args[0]->is_immed(0))
                         || (next->args[0]->immediate<0 && args[0]->is_immed(-1)))) {
-                        cout << "{0}";
+                        //cout << "{0}";
                         w.wb(0x66);
                         w.wb(0x6A);
                         w.wb(next->args[0]->immediate);
@@ -455,9 +455,9 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
 	    } else {
                 if(do_386 && next && next->insn==I_PUSH
                    && next->args[0]->type==CArgument::IMMEDIATE && !next->args[0]->is_byte_imm()) {
-                    cout << "{1}";
+                    //cout << "{1}";
                     w.wb(0x66);
-                    w.wb(0x6A);
+                    w.wb(0x68);
                     next->args[0]->write_immed(w);
                     args[0]->write_immed(w);
                     next->ip = ip;
@@ -480,10 +480,9 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
             if(do_386 && next && next->insn==I_PUSH && next->args[0]->type==CArgument::MEMORY) {
                 args[0]->inc_imm(-2);
                 if(*args[0] == *next->args[0]) {
-                    /* zwei push immediate zusammenfassen */
-                    cout << "{2}";
-                    w.wb(0x66);
-                    args[0]->write_rm(w, 0xFF, 6);
+                    /* zwei push r/m zusammenfassen */
+                    //cout << "{2}";
+                    args[0]->write_rm(w, 0xFF, 6, true, 0x66);
                     args[0]->inc_imm(2);
                     next->ip = ip;
                     return next->next;
@@ -671,10 +670,9 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
                        && next->args[1]->type==CArgument::IMMEDIATE) {
                         args[0]->inc_imm(2);
                         if(*args[0] == *next->args[0]) {
-                            cout << "{3}";
+                            //cout << "{3}";
                             args[0]->inc_imm(-2);
-                            w.wb(0x66);
-                            args[0]->write_rm(w, 0xC7, 0);
+                            args[0]->write_rm(w, 0xC7, 0, true, 0x66);
                             args[1]->write_immed(w);
                             next->args[1]->write_immed(w);
                             next->ip = ip;
