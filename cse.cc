@@ -21,17 +21,6 @@
 
 bool debugflag = 0;
 
-struct OperandSet {
-    int regs;
-    vector<CArgument*> mem;
-    bool flags, stack;
-    
-    OperandSet() : regs(0), flags(false), stack(false) { }
-    void fix_regs();
-    void add_op(CArgument* a);
-    bool contains_arg(CArgument* a);
-};
-
 void OperandSet::fix_regs()
 {
 #define DREG(name,hi,lo)               \
@@ -39,6 +28,21 @@ void OperandSet::fix_regs()
         regs |= (1 << hi) | (1 << lo); \
     if(regs & ((1 << hi) | (1 << lo))) \
         regs |= (1 << name);
+
+    DREG(rAX, rAH, rAL);
+    DREG(rBX, rBH, rBL);
+    DREG(rCX, rCH, rCL);
+    DREG(rDX, rDH, rDL);
+#undef DREG
+    
+    regs &= ~(1 << rNONE);
+}
+
+void OperandSet::fix_regs_conservative()
+{
+#define DREG(name,hi,lo)               \
+    if(regs & (1 << name))             \
+        regs |= (1 << hi) | (1 << lo); \
 
     DREG(rAX, rAH, rAL);
     DREG(rBX, rBH, rBL);
@@ -311,7 +315,7 @@ bool try_cse(CInstruction* a1, CInstruction* a2)
        <codeB> == [b,a2)
        <codeA> == [a2,a2end) */
 
-    if(a1->ip == 0x210)
+    if(a1->ip == 0x16c)
         cout << "found\n";
 
     while(1) {
@@ -326,13 +330,12 @@ bool try_cse(CInstruction* a1, CInstruction* a2)
         codeb_write.fix_regs();
         /* codeB darf keine Dinge modifizieren, die codeA braucht */
         if(!codea_read.stack) {
-//             /* wenn die Flags egal sind ... */
-// erwischt die gewünschten Teile trotzdem nicht :-(
-//             if(codea_write.flags && codeb_write.flags
-//                && !codeb_read.flags && !codea_read.flags && flag_check(a2end)) {
-//                 cout << "FLAGHACK";
-//                 codea_write.flags = codeb_write.flags = false;
-//             }
+            /* wenn die Flags egal sind ... */
+            if(codea_write.flags && codeb_write.flags
+               && !codeb_read.flags && !codea_read.flags && flag_check(a2end)) {
+                cout << "FLAGHACK";
+                codea_write.flags = codeb_write.flags = false;
+            }
             if(check_dependencies(codea_read, codea_write)
                && check_dependencies(codea_read, codeb_write)
                && check_dependencies(codea_write, codeb_write)) {
@@ -349,7 +352,7 @@ bool try_cse(CInstruction* a1, CInstruction* a2)
         a2end = a2end->next;
     }
 
-    if(a1->ip == 0x210)
+    if(a1->ip == 0x16c)
         cout << "kickme\n";
     if(maxb) {
         /* wir können was löschen */
