@@ -1281,7 +1281,7 @@ TAction check_int_arit(CInstruction* i)
             /*
              *  and RL, N
              *  xor RH, RH
-             *  -> xor RX, N
+             *  -> and RX, N
              */
             i->args[0]->reg = TRegister(rl - rAL + rAX);
             i->args[1]->immediate &= 0xFFU;
