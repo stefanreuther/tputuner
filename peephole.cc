@@ -720,7 +720,6 @@ TAction check_cwd_longmul(CInstruction* p)
         movcx->args[0] = new CArgument(TRegister(rAX));
         movcx->insn = I_IMUL;
         movcx->opsize = 2;
-        cout << "Y";
         return A_DELETE;
     }
     
@@ -751,8 +750,57 @@ TAction check_cwd_longmul(CInstruction* p)
     xorbx->next = call->next;
     xorbx->next->prev = xorbx;
     delete call;
-    cout << "X";
     return A_DELETE;
+}
+
+/*
+ *   jcc SKIP
+ *   mov T, A1         mov T, A1
+ *   jmp FOO      =>   jncc FOO
+ * SKIP:               mov T, A2
+ *   mov T, A2
+ *
+ *   wenn T unabhängig von A2
+ */
+TAction check_double_mov(CInstruction* i)
+{
+    if(i->insn != I_JCC)
+        return A_BAD;
+
+    CInstruction* m1 = i->next;
+    if(!m1 || m1->insn != I_MOV)
+        return A_BAD;
+
+    CInstruction* j = m1->next;
+    if(!j || j->insn != I_JMPN)
+        return A_BAD;
+
+    CInstruction* l = j->next;
+    if(l != i->args[0]->label)
+        return A_BAD;
+
+    CInstruction* m2 = l->next;
+    if(!m2 || m2->insn != I_MOV)
+        return A_BAD;
+
+    if(*m2->args[0] != *m1->args[0])
+        return A_BAD;
+
+    if(m1->args[0]->type == CArgument::REGISTER
+       && m2->args[1]->uses_reg(m1->args[0]->reg)) {
+        cout << "@no" << i->ip;
+        return A_BAD;
+    }
+
+    if(m1->args[0]->type == CArgument::REGISTER || do_size) {
+        cout << "@yes" << i->ip;
+        j->insn = I_JCC;
+        j->param = i->param ^ 1;
+        return A_DELETE;
+    } else {
+        cout << "@njet" << i->ip;
+        return A_BAD;
+    }
 }
 
 TAction last_function(CInstruction* i)
@@ -776,6 +824,7 @@ TAction (*functions[])(CInstruction* i) = {
     check_maybe_unary,
     check_zero_arit,
     check_cwd_longmul,
+    check_double_mov,
     last_function };
 
 /*
