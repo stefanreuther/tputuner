@@ -31,11 +31,11 @@ depend:
 
 assemble.o: assemble.h codewriter.h insn.h
 codewriter.o: codewriter.h insn.h
-cse.o: cse.h insn.h codewriter.h optimize.h global.h dfa.h
+cse.o: cse.h insn.h codewriter.h optimize.h global.h dfa.h tpufmt.h
 dfa.o: insn.h codewriter.h dfa.h optimize.h global.h
 disassemble.o: insn.h codewriter.h disassemble.h global.h
 global.o: global.h
-insn.o: insn.h codewriter.h assemble.h global.h
+insn.o: insn.h codewriter.h assemble.h global.h tpufmt.h
 optimize.o: optimize.h global.h insn.h codewriter.h disassemble.h dfa.h
 optimize.o: peephole.h regalloc.h cse.h
 peephole.o: insn.h codewriter.h peephole.h dfa.h optimize.h global.h tpufmt.h

@@ -1,16 +1,20 @@
 
 
-            TPUTUNER - Ein Code-Optimierer for Turbo Pascal 6.0
-          =======================================================
+           TPUTUNER - Ein Code-Optimierer for Turbo Pascal
+       =======================================================
 
 
 Funktion
 ---------
 
-  TPUTUNER optimiert eine Turbo Pascal 6.0 Unit (.tpu), um bessere
-  Performance und vor allem auch geringere Codegröße zu erreichen.
+  TPUTUNER optimiert eine Turbo Pascal Unit (.tpu), um bessere
+  Performance und vor allem auch geringere Codegröße zu erreichen. 
   Dazu wird die Unit disassembliert, optimiert, und wieder
   assembliert.
+
+  TPUTUNER unterstützt Turbo Pascal 6.0 (bzw. TPW 1.5) und Borland
+  Pascal 7.0; zwischen beiden Modi wird zur Compilierzeit
+  unterschieden.
 
 
 Aufruf
@@ -78,7 +82,7 @@ Statusmeldungen
     wird die Optimierung beendet.
 
   + Reassembler-Passes: meistens nur einer, mehrere können auftreten,
-    wenn sich durch den ersten Pass noch Adressen verschoben haben, so 
+    wenn sich durch den ersten Pass noch Adressen verschoben haben, so
     daß Sprünge kürzer codiert werden konnten.
 
 
@@ -214,7 +218,7 @@ Optimierungen
                 or(2)   ax, ax
   egal, in welchem Kontext.
 
-  Außerdem ersetzt diese Optimierung einige Aufrufe in die Unit SYSTEM 
+  Außerdem ersetzt diese Optimierung einige Aufrufe in die Unit SYSTEM
   durch Assembler-Instruktionen (siehe tpufmt.h), und modifiziert
   gelegentlich den Initialisierungscode einer FOR-Schleife.
 
@@ -257,7 +261,7 @@ Optimierungen
 * Sprünge verzögern (--late-jump)
 
   Diese Optimierung funktioniert ähnlich wie `--early-jump', hier
-  werden jedoch Sprünge verzögert. Im Gegensatz zu `--early-jump' wird 
+  werden jedoch Sprünge verzögert. Im Gegensatz zu `--early-jump' wird
   hier jedoch nicht immer Code gespart, der sich ergebende Code ist
   aber u.U. besser parallelisierbar.
 
@@ -283,7 +287,7 @@ Optimierungen
 * Optimierung auf Größe (--size)
 
   Die meisten Optimierungen bringen sowohl einen Geschwindigkeits-
-  gewinn, als auch reduzierte Programmgröße. Manche Änderungen sind 
+  gewinn, als auch reduzierte Programmgröße. Manche Änderungen sind
   jedoch mit einer Geschwindigkeitseinbuße verbunden. TPUTUNER wird
   diese nur dann durchführen, wenn Sie die --size-Option angegeben
   haben. Beispiel:
@@ -294,7 +298,7 @@ Optimierungen
                 mov     [foo], ss
                 push    ss
                 pop     es
-  was langsamer ist (mehr Speichertransfers), aber 2 Bytes kürzer. Den 
+  was langsamer ist (mehr Speichertransfers), aber 2 Bytes kürzer. Den
   `mov [foo],ss' kann TPUTUNER nicht entfernen, da der Wert in [foo]
   evtl. später noch gebraucht wird.
 
@@ -347,7 +351,7 @@ Optimierungen
   sortiert, je nach Adreßlage, die beiden Zuweisungen an lock an den
   Anfang oder das Ende.
 
-  Diese Optimierung ist Bestandteil der Peephole-Optimierung, also muß 
+  Diese Optimierung ist Bestandteil der Peephole-Optimierung, also muß
   letztere eingeschaltet sein, um --sort-moves zu verwenden.
 
 
@@ -373,7 +377,7 @@ Optimierungen
   + sie langsam ist (die Suche nach gleichen Codestücken ist mindestens
     O(n^2))
   + hier Zeiger-Aliasing-Probleme besonders deutlich werden. TPUTUNER hat
-    eine ultrasimple Aliasing-Erkennung für diese Optimierung (und gar 
+    eine ultrasimple Aliasing-Erkennung für diese Optimierung (und gar
     keine Aliasing-Erkennung für den Rest!). Wie leicht man diese aushebeln
     kann, verbleibt zu ermitteln: wenn sowohl <codeA> als auch <codeB>
     auf eine Speicherzelle [es:di+10] schreiben, wird Aliasing angenommen;
@@ -417,7 +421,7 @@ Optimierungen
 
   + Loop Unrolling (Schleifen aufrollen)
 
-  + Function Inlining (Ideen für einen globalen(!) Inliner bestehen 
+  + Function Inlining (Ideen für einen globalen(!) Inliner bestehen
     aber -- das kann nicht mal gcc ;-)
 
   + EXE-Dateien optimieren. Bei TPUs steht an den Konstanten noch
@@ -433,7 +437,7 @@ Optimierungen
 Ergebnisse
 -----------
 
-  TPUTUNER kann die meisten Units um 2-10% verkürzen. Ich halte das 
+  TPUTUNER kann die meisten Units um 2-10% verkürzen. Ich halte das
   für ein ganz ansehnliches Ergebnis.
 
   Beispiel-Ergebnisse:
@@ -519,7 +523,7 @@ Debuglistings
     \            verweisen auf dieses Label
      \_ Adresse (Hex)
 
-  Manchmal erhalten Befehle einen zusätzlichen Operanden untergejubelt 
+  Manchmal erhalten Befehle einen zusätzlichen Operanden untergejubelt
   (z.B. `xor(2)  ax, ax, 0'), der für interne Abläufe in TPUTUNER
   wichtig ist.
 
@@ -527,7 +531,7 @@ Debuglistings
   Debug-Listings. Diese werden in der Ausgabe vom Assembler wieder
   auseinandergenommen.
 
-  Relocation-Einträge werden von TPUTUNER nicht weiter analysiert, bis 
+  Relocation-Einträge werden von TPUTUNER nicht weiter analysiert, bis
   auf die Annahme, daß der Wert `ro=' zur Berechnung des Abstandes im
   Speicher von zwei sonst identischen Einträgen benutzt werden kann,
   und das bestimmte Relocations Systemaufrufe der Unit SYSTEM bezeichnen
@@ -567,4 +571,3 @@ Autor, Legalesisch
 
 
 -eof-
-Die Datei ist schon zuende, dieser Text ist nur eine Halluzination.

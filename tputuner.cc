@@ -1,7 +1,7 @@
 /*
  *  tputuner - Ein Programm zur Optimierung von Turbo-Pascal Code
  *
- *  (c) copyright 1998,1999,2000 by Stefan Reuther
+ *  (c) copyright 1998,1999,2000,2002 by Stefan Reuther
  *
  *  Hauptmodul. Hier wird die Unit geladen, die Code-, Entry- und
  *  Relocation-Eintr‰ge geladen und zugeordnet, und schlieﬂlich
@@ -190,7 +190,7 @@ bool load_unit(char* filename)
     }
 
     ref_this_unit = ofs_this_unit = get_word(OFS_THIS_UNIT) + 2;
-    if(unit[ofs_this_unit] != 89) {
+    if(unit[ofs_this_unit] != ITYP_UNIT) {
         cout << "Error: Can't find internal name of unit" << endl;
         delete[] unit;
         return false;
@@ -263,13 +263,14 @@ void find_system_unit()
     int ofs = get_word(OFS_UNIT_LIST);
     int end = get_word(OFS_SRC_NAME);
     while(ofs < end) {
-        int len = unit[ofs + 2];
-        if(len == 6 && strncmp(&unit[ofs + 3], "SYSTEM", 6)==0) {
+        int len = unit[ofs + UNIT_BLOCK_NAME];
+        if(len == 6 && (strncmp(&unit[ofs + UNIT_BLOCK_NAME+1], "SYSTEM", 6)==0
+                        || strncmp(&unit[ofs + UNIT_BLOCK_NAME+1], "System", 6)==0)) {
             sys_unit_offset = ofs - get_word(OFS_UNIT_LIST);
             cout << "System unit at " << sys_unit_offset << endl;
             return;
         }
-        ofs += len + 3;
+        ofs += len + UNIT_BLOCK_NAME+1;
     }
     cout << "Can't find system unit!" << endl;
 }
@@ -476,12 +477,12 @@ TOption options[] = {
 
 void help()
 {
-    cout << "Stefan's TPU Tuner - (c) copyright 1998,1999,2000 by Stefan Reuther" << endl
+    cout << "Stefan's TPU Tuner - (c) copyright 1998,1999,2000,2002 by Stefan Reuther" << endl
 	 << endl
 	 << "Usage: tputuner [-options] file.in [file.out]" << endl
 	 << endl
-	 << "file.in is a Turbo Pascal 6.0-generated TPU file, file.out is the name where" << endl
-	 << "to write the tuned file to, if different from file.in" << endl
+	 << "file.in is a TPU file (version " << UNIT_FORMAT << ", \"" UNIT_ID "\")" << endl
+         << "file.out is the output file name (if different from file.in)" << endl
 	 << endl
 	 << "Options specify which optimizations to perform. Use an upper-case letter" << endl
 	 << "(short options) or add `no-' (long options) to turn them off." << endl
