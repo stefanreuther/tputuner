@@ -545,6 +545,47 @@ TAction check_shift(CInstruction* p)
     return A_BAD;
 }
 
+/*
+ *  FOR-Anfang:
+ *    mov [i],n        ->    mov [i],n-1
+ *    jmp skip             cont:
+ *  cont:                    inc [i]
+ *    inc [i]              skip:
+ *  skip:
+ */
+TAction check_for_init(CInstruction* p)
+{
+    if(p->insn != I_MOV
+       || p->args[1]->type != CArgument::IMMEDIATE
+       || !p->next
+       || p->next->insn != I_JMPN
+       || p->next->args[0]->type != CArgument::LABEL)
+        return A_BAD;
+
+    CInstruction* q = p->next->next;
+    while(q && q->insn==I_LABEL)
+        q = q->next;
+    if(!q
+       || (q->insn != I_INC && q->insn != I_DEC)
+       || !(*q->args[0] == *p->args[0])
+       || q->opsize != p->opsize
+       || !q->next
+       || q->next->insn != I_LABEL
+       || p->next->args[0]->label != q->next)
+        return A_BAD;
+
+    cout << "~";
+
+    CInstruction* j = p->next;         // jmp
+    p->next = j->next;
+    delete j;
+    if(q->insn==I_INC)
+        p->args[1]->inc_imm(-1);
+    else
+        p->args[1]->inc_imm(1);
+    return A_RESCAN;
+}
+
 TAction last_function(CInstruction* i)
 {
     return A_CONTINUE;
@@ -562,6 +603,7 @@ TAction (*functions[])(CInstruction* i) = {
     check_xchg,
     check_shift,
     check_push_reg,
+    check_for_init,
     check_maybe_unary,
     last_function };
 
