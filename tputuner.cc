@@ -501,6 +501,7 @@ TOption options[] = {
     { 's', "size", &do_size,                       "optimize for small size, not speed" },
     { 'e', "early-jump", &do_early_jmp,            "jump earlier to re-use identical code" },
     { 'l', "late-jump", &do_late_jmp,              "jump later to re-use identical code" },
+    { 'r', "reg-alloc", &do_reg_alloc,             "basic register re-allocation" },
     { '3', "386", &do_386,                         "allow handling of some 386 insns" },
     { 0, 0, 0, 0 }
 };
