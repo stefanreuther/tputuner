@@ -1000,7 +1000,7 @@ TAction check_reg_swap(CInstruction* i)
     if(!i->args[0] || i->args[0]->type != CArgument::REGISTER
        || !i->next || i->next->insn != I_MOV)
         return A_BAD;
-    
+
     switch(i->insn) {
      case I_MOV:
         break;
@@ -1038,6 +1038,12 @@ TAction check_reg_swap(CInstruction* i)
     while(1) {
         if(!p || is_break(p))
             return A_BAD;       // nicht beweisbar sicher
+        if (p->insn == I_JCC || p->insn == I_JCXZ || p->insn == I_JMPN || p->insn == I_JMPF) {
+            // I think forward jumps are unproblematic, but I'm too lazy
+            // to reason about it. Leave it out.
+            // if (p->args[0]->type != TArgument::LABEL || p->args[0]->label->ip >= p->ip)
+            return A_BAD;
+        }
         compute_insn_dep(in, out, p);
         /* unsicher, wenn
            - in enthält r1 oder Teil oder Übermenge von r1

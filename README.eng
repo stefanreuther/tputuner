@@ -1,0 +1,543 @@
+
+
+               TPUTUNER - A Turbo Pascal Code Optimizer
+          ==================================================
+
+
+What the heck...?
+------------------
+
+  TPUTUNER optimizes a Turbo Pascal unit (.tpu) to achieve better
+  performance, and smaller code size. Therefore, the unit is
+  disassembled, optimized and assembled again.
+
+  TPUTUNER supports Turbo Pascal 6.0 (resp. TPW 1.5), and Borland
+  Pascal 7.0; the format is selected at compile time.
+
+  [[ This is a translation of the original German readme file. The
+  source code remains commented in German. ]]
+
+
+Invocation
+-----------
+
+  tputuner unit.tpu [target.tpu] [options]
+
+  The target file can be different from the unit file, to keep the
+  original. The following options are allowed:
+
+  -a, --data-flow-analysis
+  -j, --reduce-jump-chains
+  -p, --peephole-optimizations
+  -u, --remove-unused-code
+  -e, --early-jump
+  -l, --late-jump
+  -r, --reg-alloc
+  -m, --sort-moves
+  -c, --combine-strings
+  -g, --cse
+       Choose the optimisations to perform. By default, all but -r, -c
+       and -g are on. To disable one option, use capital letters
+       (`-A') or add a "--no" to the long option (`--no-early-jump').
+       See below for option descriptions.
+
+  -d, --debug-dump
+       Enables generation of debug dumps, see below.
+
+  -n, --names
+       When enabled (default), TPUTUNER reads symbol tables and shows
+       names of the processed functions in its status messages. If
+       this is problematic or annoying, disable with `-N' / `--no-names'.
+
+  -s, --size
+       Optimize for size, not speed. May generate instructions that
+       are slower (more memory accesses) but need less code.
+
+  -3, --386
+       Enables use of 386 instructions. By default, TPUTUNER reads and
+       writes 286 code.
+
+
+Status Messages
+----------------
+
+  During run, TPUTUNER displays messages of the following format:
+
+  - code block #248... 1! 2 3 r1  --> 47 bytes saved (new size = 1247)
+                 \      \      \       \__ code size reduction this block
+                  \      \      \__ Reassembler passes
+                   \      \__ Optimizer passes
+                    \__ Code block number
+
+  + Code block numbers: the first procedure has number 0, the next is
+    8, then 10, 18, etc (hex), no matter in what order they're declared.
+
+  + Optimizer passes: `!' marks passes that yielded improvements.
+    After two passes with identical results, tputuner stops.
+
+  + Reassembler passes: usually only one; there can be more when
+    reassembly causes some addresses to change because jumps can be
+    coded shorter.
+
+
+Error messages
+---------------
+
+  These messages cause TPUTUNER to ignore the respective block. This
+  recognizes code which TPUTUNER would damage (I/O, interrupt calls,
+  data in code segment, etc.)
+
+  `Unrecognized opcode xx'
+  `Direct interrupt access'
+  `FPU is not supported' und ähnliche
+    TPUTUNER can't disassemble all instructions. It does not recognize
+    386+ insns, `test', most flag and string insns, and port I/O.
+
+  `Warning: code block contains bad relocation entries'
+    You were taking the absolute address of a label somehow (can only
+    be done in inline assembly). TPUTUNER can't handle that.
+
+  `Unrecognized relocation item at...'
+    A relocation entry was encountered where TPUTUNER didn't expect
+    it. Basically, this means an address literal in code, as per
+    `asm @foo: dw offset @foo; end'.
+
+
+Inline Assembler
+-----------------
+
+  ... will be happily processed by TPUTUNER. This is a feature:
+  TPUTUNER has no chance of separating Pascal and Assembler code,
+  anyway. This allows jump reduction (`jmp finish'...`finish: Exit;')
+  and elimination of memory transfers (`a := Random(10); asm mov ax,a
+  ...'). Critical assembly code hopefully gets rejected because it
+  contains unsupported insns.
+
+  Inline functions are also optimized. Say,
+    function successor(i:integer):integer; inline($58/$40);
+    ...
+    j:=successor(3);
+  is compiled to
+     push 3
+     pop  ax     ; $58
+     inc  ax     ; $40
+     mov  [j],ax
+  TPUTUNER turns the push/pop combo into
+     mov  ax,3
+
+  .obj files are generally not optimized, because Turbo assigns them a
+  single code block with multiple entries. TPUTUNER can't handle that.
+
+
+Optimisations
+--------------
+
+  Most optimisations are about removing code. This doubtlessly makes
+  programs smaller: just count bytes. It generally also makes them
+  faster, but that property can't be measured as objectively (counting
+  cycles from spec books? not on a Pentium!) But when theres less to
+  do for your CPU, and when more of your program fits in the cache, it
+  ought to be faster :-)
+
+
+* Data flow analysis (--data-flow-analysis)
+
+  Eliminates superfluous instructions, when the results they produce
+  are already available. These include mostly only load instructions,
+  and some logic insns. Probably the correct name for this one would
+  be  `reload optimisation', but `data flow analysis' sounds much
+  cooler ;-)
+
+  + Example:
+        p^.a := 1;
+        p^.b := 2;
+    compiled to
+        les(2)    di, [ss:bp+6]
+        mov(2)    [es:di+0], 1
+        les(2)    di, [ss:bp+6]
+        mov(2)    [es:di+2], 2
+    TPUTUNER removes the second LES.
+
+  + Counterexample: aliasing
+        p := @a;
+        a := b + 1;
+        inc(p^);
+        b := a + 1;
+    compiled to:
+        lea(2)    ax, [ss:bp+8]            ; p := @a
+        mov(2)    dx, ss
+        mov(2)    [ss:bp+fffffffc], ax
+        mov(2)    [ss:bp+fffffffe], dx
+        mov(2)    ax, [ss:bp+6]            ; a := b + 1
+        inc(2)    ax
+        mov(2)    [ss:bp+8], ax
+        les(2)    di, [ss:bp+fffffffc]     ; inc(p^)
+        inc(2)    [es:di+0]
+        mov(2)    ax, [ss:bp+8]        **  ; b := a + 1
+        inc(2)    ax
+        mov(2)    [ss:bp+6], ax
+
+    The original code increments b thrice, the optimized code only
+    twice. The line marked ** is removed as being superfluous, "because
+    AX already contains [ss:bp+8]". I have not seen such a thing in
+    real code, though.
+
+  + Counterexample: register parameters
+                mov     si,offset foo
+                mov     di,si
+                call    bar  { Source in SI, Target in DI }
+    optimized to
+                mov     di, offset foo
+                call    bar
+    TPUTUNER assumes that SI only serves for initialisation of DI.
+
+
+* Jump chain removal (--reduce-jump-chains)
+
+  When a jump jumps to another jump, TPUTUNER jumps to the target
+  directly. This happens in constructs like
+         IF foo THEN BEGIN
+           IF bar THEN qux ELSE frob
+         END ELSE fred;
+
+
+* `Peephole' optimisations (--peephole-optimizations)
+
+  Replace complex insns by simpler ones. Sort of `search & replace',
+  and should be safe with TP code. Code is only looked at through a
+  peephole of usually 2 or 3 instructions:
+                cmp(2)  ax, 0
+  is turned into
+                or(2)   ax, ax
+  in any context.
+
+  In addition, this optimisation replaces some unit SYSTEM calls by
+  inline assembly instructions (see tpufmt.h), and simplifies the FOR
+  initialisation part.
+
+
+* Unused code removal (--remove-unused-code)
+
+  Removes unreferenced code, which results from jump chain removal,
+  for example. Usually safe, except when one puts data in code...
+
+
+* Jump earlier (--early-jump)
+
+  Jumps earlier when at the jump target the same instructions would be
+  performed as before the jump. This happens quite often, especially
+  when longints or strings are in play. TPUTUNER also recognizes some
+  blocks as being the same when they slightly differ. This
+  optimisation requires the unused code removal be enabled (`-u').
+
+  + Example:
+                cmp     [xxx], 1        IF xxx=1 THEN
+                jne     skip
+                push    10                func(10)
+                call    func
+                jmp     done            ELSE
+        skip:   push    9                 func(9);
+                call    func
+        done:
+    can be reduced to
+                cmp     [xxx], 1
+                jne     skip
+                push    10
+                jmp     done
+        skip:   push    9
+        done:   call    func
+
+
+* Jump later (--late-jump)
+
+  Similar to `--early-jump', but this one delays jumps. This may not
+  save space, but the resulting code may be better parallelizable
+  (because there are some insns between the jump's test and the jump).
+
+  + Example:
+                cmp     [xxx],1         IF xxx=1 THEN
+                jne     skip
+                push    10                Fred(10)
+                call    Fred
+                jmp     done            ELSE
+        skip:   push    10                Barney(10);
+                call    Barney
+        done:
+    shortened to
+                cmp     [xxx],1
+                push    10
+                je      skip
+                call    Fred
+                jmp     done
+        skip:   call    Barney
+        done:
+
+
+* Size reduction (--size)
+
+  Most optimisations both improve speed and program size. Some code
+  reductions, however, hurt performance. TPUTUNER will only do these
+  when you request optimisation for size. Example:
+                mov     [foo], ss
+                mov     es, [foo]
+  is not modified without this option. --size turns it into
+                mov     [foo], ss
+                push    ss
+                pop     es
+  which is slower (more memory accesses), but 2 bytes shorter.
+  TPUTUNER can not remove the first mov, because the value in [foo]
+  may be needed again later.
+
+  Actually, code can also get slower without `-s', in obscure cases
+  with `--reg-alloc'.
+
+
+* Register allocation (--reg-alloc)
+
+  This optimisation makes TPUTUNER put frequently used values and
+  addresses into registers. These can be constants, local variables,
+  and addresses. In small procedures without subroutine calls, local
+  variables cna be held in registers completely.
+
+  This optimisation is off by default, because it is rather time
+  consuming. Because it sometimes undoes the DFA's effects (but always
+  yield better results), it can only be used when DFA does no longer
+  find anything to improve.
+
+  + Example:
+                var1 := 7;
+                var2 := 7;
+                var3 := 7;
+    compiled to
+                mov     [var1],7
+                mov     [var2],7
+                mov     [var3],7
+    optimized to
+                mov     cx,7
+                mov     [var1],cx
+                mov     [var2],cx
+                mov     [var3],cx
+
+    The latter is shorter and usually faster (fewer memory accesses,
+    faster instructions, better parallelizable).
+
+
+* Sort move instructions (--sort-moves)
+
+  Sorts `mov' insns. Peephole optimisations can then combine them to
+  store 16 or 32 bit at once. However, this makes lock variables useless:
+        lock := TRUE;
+        critical1 := 1;
+        critical2 := 42;
+        lock := FALSE;
+  Depending on addresses, both `lock' assignments will be sorted at
+  the beginning or end.
+
+  This optimisation is part of peephole optimisation, hence the latter 
+  must be enabled when you use --sort-moves.
+
+
+* Common Subexpression Elimination (--cse)
+
+  Approximately what CSE does in "real" compilers: remove repeating
+  code snippets. TPUTUNER looks for code sequences of the form
+        <codeA>
+        <codeB>
+        <codeA>
+  where <codeB> does not destroy <codeA>'s result. Here, the second
+  <codeA> can be deleted. For example, `p^.q^.x := p^.q^.y;' is
+  compiled to
+        les     di, [p]             \  codeA
+        les     di, [es:di+10]      /
+        mov     ax, [es:di]         >  codeB
+        les     di, [p]             \
+        les     di, [es:di+10]      /  codeA
+        mov     [es:di+2], ax
+  The second address computation can be omitted.
+
+  This optimisation is off by default, because
+  + it is slow. The common code search routine is O(n^2) at least.
+  + pointer aliasing problems are especially hard here. TPUTUNER has a 
+    simple aliasing recognition for this part (but NO aliasing checks
+    for the rest!). It remains to check how hard it is to bypass it,
+    when both <codeA> and <codeB> write to [es:di+10], aliasing is
+    assumed. Because Pascal has no pointer arithmetic, problems should 
+    be rare...
+
+
+* String combination (--combine-strings)
+
+  (not yet done) Turbo Pascal only combines common string constants
+  within a function. This optimisation does the same, for a whole
+  unit. It must be quite conservative, though, to not destroy other
+  constants (floats, for example).
+
+  NOTE 10/Oct/2000: I'll probably not finish this one. It's quite ugly 
+  to write, and doesn't give much.
+
+
+* Using 386 insns (--386)
+
+  Generates 386 instructions:
+  + jcc j16
+  + setcc r/m8
+  + push i32, push m32
+  + mov r/m32, i32
+
+  The 32-bit insns do not appear in debug listings; they are listed as 
+  two 16-bit insns at the same address:
+        98:  push(2)   [es:di+ffffffea]
+        98:  push(2)   [es:di+ffffffe8]
+  This is what would be a `push(4) [es:di+ffffffe8]'.
+
+  TPUTUNER can not read back in such units.
+
+
+* TPUTUNER does not...
+
+  + precompute constants: the compiler should have done this by the
+    extent possible.
+
+  + Loop Unrolling.
+
+  + Function Inlining (although I have ideas for a global(!) inliner
+    -- not even gcc can do that ;-)
+
+  + optimize EXE files. TPUs still have a notice which value is an
+    address and which not, EXEs do not have that.
+
+  + Aliasing recognition: TPUTUNER assumes no value is accessible over 
+    two access paths, e.g. both via a pointer and a fixed address.
+    Basically, we assume all pointers were declared with the C
+    `restrict' modifier and no variable is `volatile'. Turbo Pascal
+    assumes just the opposite.
+
+
+Results
+--------
+
+  TPUTUNER can shorten most units by 2..10%. I think that's quite a
+  usable result.
+
+  Examples:
+
+  + PCC (approx. version 0.99.5):
+    - approx. 40 KLOC + 5 KLOC library code (not optimized)
+    - normal Turbo Pascal code:
+       cc.exe  112144
+       cc.ovr  352649
+             = 464793
+    - optimized with `tputuner -3sE', version approx. 11/1998:
+       cc.exe  110256
+       cc.ovr  341475
+             = 451731 (13062 = 2.8% saved)
+
+  + PCC (v1.0.6.3-debug):
+    - about. 70 KLOC
+    - normal Turbo Pascal code:
+       cc.exe  244544
+       cc.ovr  642800
+             = 887344
+    - optimized with `tputuner -3rg', version 10/2000:
+       cc.exe  230672
+       cc.ovr  583492
+             = 814164 (73180 = 8.2% saved)
+
+  (such huge interactive programs should probably be only optimized
+  for size -- response times never have been problematic)
+
+  The most important optimisations are data flow analysis (`-a'),
+  early jump (`-e') and CSE (`-g'). The others only yield marginal
+  improvements.
+
+
+Supporting the Optimizer
+-------------------------
+
+  When every byte/cycle counts...
+
+  + Simple statments / WITH: TPUTUNER generally only manages one level 
+    of indirection. CSE can do more, but doesn't catch everything.
+  + Assignment chains / using values directly after computing thems.
+    This can re-use register values.
+  + Group variables: variables which are often used together should be 
+    declared next to each other. So they can be initialized en bloc.
+  + Declare small, frequently-used variables first (-> 8 bit displacements).
+  + Declare variables that are often passed by-value in pairs next
+    each other, so they can be passed to callees an bloc: static 
+    variables/record elements as `VAR y, x:INTEGER', locals as
+    `VAR x, y:INTEGER' (-> `foo(x,y)'.
+
+
+Debug Listings
+---------------
+
+  Debug listings (--debug-dump) have names `blockX.passY' (`blockX.pY'
+  in DOS) where X is the block number in hex, and y is the decimal
+  pass number. Only optimizer passes are logged.
+
+  The format is about this:
+
+  1a:  mov(2)    cx, 3
+            \__ operand size
+  1f:  callf     <un=13,rt=30,rb=30,ro=0>
+          \                  \___ Relocation entry
+           \___ `call far', as opposed to `call near'
+  24:  mov(2)    [ss:bp+6], ax
+  2e:  jcc`c'    <label:38>
+         \            \_ target is a Label (which currently is at 38hex)
+          \_ Conditional jump with Condition Code (jcc`c' == jl, opcode 7Ch),
+             similar for setcc (setcc`c' == setl, opcode 0Fh 9Ch).
+  38:  label`1'  <38>
+   \          \_ Reference count for labels (hex) = how many jumps
+    \            refer here
+     \_ Address (Hex)
+
+  Sometimes, instructions get an additional operand by TPUTUNER
+  (e.g. `xor(2)  ax, ax, 0').
+
+  TPUTUNER also generates 386 insns when 386 code is not enabled. The
+  assembler will then split them again.
+
+  TPUTUNER does not analyze relocation entries, except for knowing
+  some SYSTEM calls, and that `ro=' can be used to compute the
+  distance between two otherwise identical entries.
+
+
+Compiling TPUTUNER
+-------------------
+
+  I generally compiler TPUTUNER under Linux with gcc-2.8.1 or later,
+  or under DOS with DJGPP 2.02, using the enclosed makefile and GNU
+  make.
+
+  TPUTUNER isn't actually what I would call "nice". It started as one
+  of my first C++ programs. Probably it has memory leaks like hell. In
+  addition, most comments are in German. Good luck.
+
+
+Author, Legalese
+-----------------
+
+  Stefan Reuther, <Streu@gmx.de>, German computer science student.
+
+  Copying explicitly permitted. When you use this program for more
+  than a short test, please send me your impressions and experiences.
+
+  ABSOLUTELY NO WARRANTY: YOU USE tputuner ON YOUR OWN RISK. I
+  DISCLAIM ANY LIABILITY FOR DAMAGE DONE DIRECTLY OR INDIRECTLY BY
+  tputuner. WHEN tputuner DESTROYS YOUR PROGRAM, IT'S YOU WHO HAVE A
+  PROBLEM, NOT ME. IF YOU DO NOT WANT TO TAKE THAT RISK, DO NOT USE
+  tputuner.
+
+  I use TPUTUNER for daily development work on PCC (now >80000 lines),
+  so "critical" errors generally get notices. But maybe you use
+  different code patterns than me, so TPUTUNER stumbles. Or the error
+  is pretty subtle. Once there was a bug that in my GUI, button labels 
+  were offset by a pixel -- TPUTUNER's fault. Anyway, I consider
+  TPUTUNER a pretty stable thing.
+
+  Besides, you have source, so feel free to do a formal verification...
+
+
+-eof-
