@@ -401,6 +401,17 @@ void global_register_allocation(CInstruction* insn, bool* regs_used)
            insn->args[1]->is_reg(rSP))
             pre = insn;
     }
+    /* eliminate stack checking code */
+    if(pre && pre->next && pre->next->next && pre->next->next->next) {
+        CInstruction* movax = pre->next;
+        CInstruction* call = movax->next;
+        CInstruction* subsp = call->next;
+        if(movax->insn == I_MOV && movax->args[0]->is_reg(rAX) &&
+           call->insn == I_CALLF &&
+           subsp->insn == I_SUB && subsp->args[0]->is_reg(rSP) &&
+           *subsp->args[1] == *movax->args[1])
+            pre = subsp;
+    }
     if(!pre)
         return;
     
@@ -513,6 +524,7 @@ void register_allocation(CInstruction* oinsn)
     /* Suche unbenutzte Register */
     bool regs_used[rMAX];
     bool can_global = true;
+    int stackcheck = 0;
 
     for(int i = 0; i < rMAX; i++)
         regs_used[i] = false;
@@ -520,15 +532,27 @@ void register_allocation(CInstruction* oinsn)
         = regs_used[rBP] = regs_used[rCS] = true;
 
     CInstruction* insn = oinsn->next;          // der erste Befehl kann nicht Teil eines Blocks sein
+    if(oinsn->insn == I_PUSH)
+        stackcheck = 1;
     for(CInstruction* p = insn; p; p = p->next) {
         switch(p->insn) {
+         case I_MOV:
+            if(stackcheck == 1 || stackcheck == 2) 
+                stackcheck++;
+            else
+                stackcheck = -1;
+            break;
+         case I_CALLF:
+            if(stackcheck == 3 && p->next && p->next->insn == I_SUB)
+                break;
          case I_LEA:
          case I_CALLN:
-         case I_CALLF:
          case I_JMPF:
             can_global = false;
+            stackcheck = 0;
             break;
-         default:;
+         default:
+            stackcheck = 0;
         }
         for(int i = 0; i < 3; i++)
             if(p->args[i])
