@@ -584,6 +584,38 @@ TAction check_for_init(CInstruction* p)
     return A_RESCAN;
 }
 
+/*
+ *  Arithmetik mit Nulloperand
+ */
+TAction check_zero_arit(CInstruction* p)
+{
+    if(!p->args[1] || !p->args[1]->is_immed(0))
+        return A_BAD;
+    switch(p->insn) {
+     case I_AND:
+        /* and foo,0
+           -> xor foo,foo  [wenn möglich] */
+        if(p->args[0]->type != CArgument::REGISTER)
+            return A_BAD;
+        p->insn = I_XOR;
+        delete p->args[1];
+        p->args[1] = new CArgument(*p->args[0]);
+        return A_RESCAN;
+     case I_OR:
+     case I_SUB:
+        /* or foo,0
+           -> or foo,foo  [wenn möglich] */
+        if(p->args[0]->type != CArgument::REGISTER)
+            return A_BAD;
+        p->insn = I_OR;
+        delete p->args[1];
+        p->args[1] = new CArgument(*p->args[0]);
+        return A_RESCAN;
+     default:
+        return A_BAD;
+    }
+}
+
 TAction last_function(CInstruction* i)
 {
     return A_CONTINUE;
@@ -603,6 +635,7 @@ TAction (*functions[])(CInstruction* i) = {
     check_push_reg,
     check_for_init,
     check_maybe_unary,
+    check_zero_arit,
     last_function };
 
 /*

@@ -467,6 +467,16 @@ bool flag_check(CInstruction* insn)
     return true;
 }
 
+TRegister find_reg_with_value(CArgument* arg)
+{
+    for(int i=rAX; i<=rDI; i++) {
+        if(values[i].type == TValue::CONSTANT
+           && *values[i].value == *arg)
+            return TRegister(i);
+    }
+    return rNONE;
+}
+
 /*
  *  Optimiert MOV-Insns
  */
@@ -486,17 +496,16 @@ CInstruction* optimize_mov(CInstruction* insn)
 	     */
 	    TRegister reg = insn->args[0]->reg;
 	    /* haben wir den Wert schon in einem anderen Register? */
-	    for(int i=rAX; i<=rDI; i++) {
-		if(values[i].type == TValue::CONSTANT
-		   && *values[i].value == *insn->args[1]) {
-		    delete insn->args[1];
-		    insn->args[1] = new CArgument(TRegister(i));
-		    changed = true;
-		    if(i != reg)
-			values[reg] = values[i];
-		    return insn;
-		}
+            TRegister r1 = find_reg_with_value(insn->args[1]);
+            if(r1 != rNONE) {
+                delete insn->args[1];
+                insn->args[1] = new CArgument(r1);
+                changed = true;
+                if(r1 != reg)
+                    values[reg] = values[r1];
+                return insn;
 	    }
+                
  	    /* haben wir einen ähnlichen Wert in diesem Register? */
  	    if(values[reg].type == TValue::CONSTANT
 	       && values[reg].value->reloc==0 && insn->args[1]->reloc==0) {
@@ -663,6 +672,17 @@ CInstruction* optimize_mov(CInstruction* insn)
 	}
     } else if(insn->args[0]->type == CArgument::MEMORY) {
 	use_mem(insn->args[0]);
+        if(insn->opsize == 2 && insn->args[1]->type == CArgument::IMMEDIATE) {
+            TRegister r1 = find_reg_with_value(insn->args[1]);
+            if(r1 != rNONE) {
+                cout << "^";
+                use_reg(r1);
+                delete insn->args[1];
+                insn->args[1] = new CArgument(r1);
+                changed = true;
+                return insn;
+            }
+        }
 	use_argument(insn->args[1]);
     } else
 	set_unknown();
@@ -1018,8 +1038,8 @@ CInstruction* optimize_arit(CInstruction* insn)
              *  ... welchen der Optimizer kickt, falls nicht
              *  benötigt
              */
-            if(insn->insn != I_ADC && insn->insn != I_SBB) {
-                /* add, sub, and, or, xor, cmp */
+            if(insn->insn != I_ADC && insn->insn != I_SBB && insn->insn != I_ADD) {
+                /* add, sub, or, xor, cmp */
                 delete insn->args[1];
                 insn->args[1] = new CArgument(*insn->args[0]);
                 cout << ">";
