@@ -3,9 +3,9 @@
 #  Aufruf: ./annotate <quelltext.pas | less
 #
 #  markiert alle Codeblock-Anfänge mit einem Kommentar der Form
-#  "{### block1d0 ###}".
+#  "{### block1d0 ###}". Dumbfire-Version (erwischt auch falsche)
 #
-#  (c) copyright 1999 Stefan Reuther <Streu@gmx.de>
+#  (c) copyright 1999,2000 Stefan Reuther <Streu@gmx.de>
 #
 
 awk '
