@@ -935,6 +935,11 @@ CInstruction* optimize_jcc_or_setcc(CInstruction* insn)
     }
  exit_loop:
 
+    /* Spruenge benoetigen potentiell alle Register am "anderen" Ende */
+    if(ret->insn == I_JCC)
+        for(int r = rAX; r < rMAX; r++)
+            values[r].used = true;
+
     if(ret->insn == I_JCC && ret->param == 5 && ret->prev) {
         /* jnz garantiert, daß das Ergebnis des vorigen Befehls 0 war */
         insn = ret->prev;
@@ -947,21 +952,11 @@ CInstruction* optimize_jcc_or_setcc(CInstruction* insn)
                 TRegister r = insn->args[0]->reg;
                 values[r].used = true;
                 values[r].set_const(0, ret->args[1]);
-                cout << "[[" << insn->ip << "]]";
             }                
         }
     }
 
-    if(ret->insn == I_JCC) {
-	if(ret->next && ret->next->insn==I_JMPN
-	   && ret->args[0]->type==CArgument::LABEL
-	   && ret->args[0]->label==ret->next->next
-	   && ret->next->next->param==1)
-	    /* ich bin ein inverse conditional jump
-	     * -> nach dem nächsten Label weitermachen, um die
-	     * Registerwerte zu erhalten */	    
-	    return ret->next->next;
-    } else if(ret->insn == I_SETCC) {
+    if(ret->insn == I_SETCC) {
 	destroy_argument(ret->args[0], false);
     }
     return ret;

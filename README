@@ -43,11 +43,6 @@ Aufruf
        die von der Peephole-Optimierung entfernt werden. "Das Ganze
        ist mehr als die Summe seiner Teile."
 
-  -c, --string-combination
-       Experimentelle, unvollständige Funktion zum Unit-weiten
-       Zusammenfassen identischer Strings -- Turbo Pascal selbst tut
-       dies nur für einzelne Codeblöcke.
-
   -d, --debug-dump
        Aktiviert die Erzeugung von Debug-Dumps.
 
