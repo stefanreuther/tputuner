@@ -153,6 +153,27 @@ bool CArgument::uses_reg(TRegister r)
 	return false;
 }
 
+// true, wenn der Operand Register /r/ enthält
+// (der Befehl ändert den Operanden. Beeinflußt das r?)
+bool CArgument::affects_reg(TRegister r)
+{
+    if(type==REGISTER)
+	return alias_reg(reg, r);
+    else
+        return false;
+}
+
+// true, wenn der Operand Register /r/ benutzt (evtl auch Teile davon)
+bool CArgument::uses_reg_part(TRegister r)
+{
+    if(type==REGISTER)
+	return alias_reg(reg, r);
+    else if(type==MEMORY)
+	return alias_reg(memory[0], r) || alias_reg(memory[1], r);
+    else
+	return false;
+}
+
 // liefert Operandengröße
 int CArgument::get_size()
 {
@@ -740,5 +761,34 @@ void CInstruction::assemble(CCodeWriter& w)
 	    w.wb(0x40 + reg_values[args[0]->reg]);
 	}
 	break;
+    }
+}
+
+/*
+ *  Liefert true, wenn Änderungen am /modify/ /keep/ beeinflussen
+ */
+bool alias_reg(TRegister modify, TRegister keep)
+{
+    if(modify == keep)
+        return true;
+    switch(modify) {
+     case rAX:
+        return keep==rAL || keep==rAH;
+     case rBX:
+        return keep==rBL || keep==rBH;
+     case rCX:
+        return keep==rCL || keep==rCH;
+     case rDX:
+        return keep==rDL || keep==rDH;
+     case rAL: case rAH:
+        return keep==rAX;
+     case rBL: case rBH:
+        return keep==rBX;
+     case rCL: case rCH:
+        return keep==rCX;
+     case rDL: case rDH:
+        return keep==rDX;
+     default:
+        return false;
     }
 }
