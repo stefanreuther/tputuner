@@ -32,7 +32,7 @@ Aufruf
   -c, --combine-strings
   -g, --cse
        Legen die Art der Optimierung fest. Standardmäßig sind alle
-       Optionen bis auf -r, -c und -g eingeschaltet. Um ein Option
+       Optionen bis auf -r, -c und -g eingeschaltet. Um eine Option
        auszuschalten, verwenden Sie Großbuchstaben (also `-A')
        bzw. bei der langen Option `--no-' (also `--no-early-jump').
        Siehe auch die Beschreibung der einzelnen Optionen weiter
@@ -180,8 +180,8 @@ Optimierungen
 
     Dieser Code inkrementiert b dreimal. Der optimierte Code
     inkrementiert b nur zweimal, da die mit ** markierte Zeile als
-    unnütz verworfen wird, schließlich enthält AX bereits den Wert von
-    [ss:bp+8].
+    unnütz verworfen wird, "schließlich enthält AX bereits den Wert von
+    [ss:bp+8]".
 
   + Fehlerbeispiel: Parameter in Registern
                 mov     si,offset foo
@@ -222,7 +222,8 @@ Optimierungen
 * Unbenutzten Code entfernen (--remove-unused-code)
 
   Entfernt unreferenzierten Code, der unter anderem durch
-  Sprungketten-Entfernung entsteht.
+  Sprungketten-Entfernung entsteht. Sollte immer sicher sein, außer
+  bei Daten im Code...
 
 
 * Sprünge vorziehen (--early-jump)
@@ -297,6 +298,9 @@ Optimierungen
   `mov [foo],ss' kann TPUTUNER nicht entfernen, da der Wert in [foo]
   evtl. später noch gebraucht wird.
 
+  Allerdings kann auch ohne `-s' der Code langsamer werden, z.B. bei
+  ungünstigen Konstellationen mit `--reg-alloc'.
+
 
 * Register-Allokierung (--reg-alloc)
 
@@ -308,8 +312,9 @@ Optimierungen
 
   Diese Optimierung ist standardmäßig deaktiviert, da sie sehr
   zeitaufwendig ist. Da sie stellenweise Ergebnisse der DFA rückgängig
-  macht (und dabei *immer* bessere Ergebnisse liefert), kann sie nur
-  angewendet werden, wenn die DFA keine Änderungen mehr bringt.
+  macht (und dabei *immer* bessere lies kleinere Ergebnisse liefert),
+  kann sie nur angewendet werden, wenn die DFA keine Änderungen mehr
+  bringt.
 
   + Beispiel:
                 var1 := 7;
@@ -371,7 +376,9 @@ Optimierungen
     eine ultrasimple Aliasing-Erkennung für diese Optimierung (und gar 
     keine Aliasing-Erkennung für den Rest!). Wie leicht man diese aushebeln
     kann, verbleibt zu ermitteln: wenn sowohl <codeA> als auch <codeB>
-    auf eine Speicherzelle [es:di+10] schreiben, wird Aliasing angenommen.
+    auf eine Speicherzelle [es:di+10] schreiben, wird Aliasing angenommen;
+    da Turbo Pascal keine Zeigerarithmetik kann, sollten Probleme relativ
+    selten sein...
 
 
 * String-Kombinierung (--combine-strings)
@@ -410,17 +417,16 @@ Optimierungen
 
   + Loop Unrolling (Schleifen aufrollen)
 
-  + Function Inlining (Ideen für einen 08/15-dumbfire-inliner bestehen 
-    aber)
+  + Function Inlining (Ideen für einen globalen(!) Inliner bestehen 
+    aber -- das kann nicht mal gcc ;-)
 
   + EXE-Dateien optimieren. Bei TPUs steht an den Konstanten noch
     dran, welche eine Adresse ist und welche nicht -- bei EXEn nicht.
 
   + Aliasing-Erkennung: TPUTUNER geht davon aus, daß kein Wert über
-    zwei Zugriffspfade erreichbar ist, also z.B. über zwei
-    verschiedene Zeiger, oder über einen Zeiger und als feste
-    Adresse. Quasi wird angenommen, alle Zeiger wären mit dem
-    C-Modifier `restrict' definiert; keine Variable ist `volatile'
+    zwei Zugriffspfade erreichbar ist, also z.B. über einen Zeiger und
+    als feste Adresse. Quasi wird angenommen, alle Zeiger wären mit
+    dem C-Modifier `restrict' definiert; keine Variable ist `volatile'
     (der Turbo-Pascal-Compiler nimmt genau das Gegenteil an).
 
 
@@ -432,17 +438,30 @@ Ergebnisse
 
   Beispiel-Ergebnisse:
 
-  <FILLME>
-  PCC (ca. Version 0.99.5):
-  + ca. 40 KLOC + 5 KLOC Bibliothekscode (nicht optimiert)
-  + Normaler Turbo Pascal Code:
-     cc.exe  112144
-     cc.ovr  352649
-           = 464793
-  + Optimierung mit `tputuner -3sE':
-     cc.exe  110256
-     cc.ovr  341475
-           = 451731 (13062 = 2.8% gespart)
+  + PCC (ca. Version 0.99.5):
+    - ca. 40 KLOC + 5 KLOC Bibliothekscode (nicht optimiert)
+    - Normaler Turbo Pascal Code:
+       cc.exe  112144
+       cc.ovr  352649
+             = 464793
+    - Optimierung mit `tputuner -3sE', Version ca. 11/1998:
+       cc.exe  110256
+       cc.ovr  341475
+             = 451731 (13062 = 2.8% gespart)
+
+  + PCC (v1.0.6.3-debug):
+    - ca. 70 KLOC
+    - Normaler Turbo Pascal Code:
+       cc.exe  244544
+       cc.ovr  642800
+             = 887344
+    - Optimierung mit `tputuner -3rg', Version 10/2000:
+       cc.exe  230672
+       cc.ovr  583492
+             = 814164 (73180 = 8.2% gespart)
+
+  (Bei so großen interaktiven Programmen sollte man wohl vorrangig auf
+  Größe optimieren -- Antwortzeiten sind eigentlich nie ein Problem)
 
   Die wichtigsten Optimierungen sind Datenflußanalyse (`-a') und
   Sprünge vorziehen (`-e') sowie evtl. CSE (`-g'). Die anderen
@@ -452,68 +471,35 @@ Ergebnisse
   daß sie beim Entfernen unbenutzten Codes Speicherplatz freigeben.
 
 
-TPUTUNER unterstützen
-----------------------
+Optimierung unterstützen
+-------------------------
 
-  Diese Regeln helfen, daß TPUTUNER besseren Code erzeugt:
+  Wenn's auf jedes Byte ankommt...
 
-* Einfache Anweisungen / WITH
-
-  [nicht nötig mit CSE]
-
-     p^.foo[i].bar := p^.foo[i].baz;   { schlecht }
-     WITH p^.foo[i] DO bar:=baz;       { besser }
-
-     p^.next^.next := p^.next^.prev;   { schlecht }
-     q:=p^.next; q^.next:=q^.prev;     { besser }
-
-  Ohne CSE verwaltet TPUTUNER nur eine `Indirektionsebene' und kann
-  somit die Gleichheit zweier Ausdrücke nicht erkennen. In den
-  `besser'-Beispielen wird eine Temporärvariable benutzt und damit
-  dem komplexen Ausdruck ein Name gegeben. Bei WITH geschieht dies
-  implizit. Das gilt natürlich auch für arithmetische Operationen:
-
-     a[i] := 2*i+2*j+c[5*d]+3;
-     b[i] := 2*i+3*j+c[5*d]+3;
-
-  geht zwar prächtig mit Cut & Paste, ist aber entsprechend länger.
-
-
-* Zuweisungsketten / Wert direkt nach Ermittlung benutzen
-
-  Werte sollten direkt nach ihrer Errechnung benutzt werden.
-
-     a := foo(b);
-     b := b + c; 
-     CASE a OF ...
-
-  Hier verdrängt die Berechnung von `b' das Ergebnis `a' aus dem
-  Register und muß neugeladen werden. Das trifft auch auf den
-  `degenerierten' Fall zu: `a:=b; c:=b;' ist schlechter als `a:=b;
-  c:=a', da in letzterem der Wert von `b' über `a' nach `c'
-  durchgereicht werden kann. Im `schlechten' Beispiel verdrängt das
-  Laden von `b' in der zweiten Zuweisung den Wert von `a'. TPUTUNER
-  kann nicht feststellen, daß `a' und `b' dasselbe sind.
-
-
-* Variablen zusammenfassen
-
-  Variablen, die oft gemeinsam genutzt werden, in den selben VAR-Block 
-  direkt beieinander packen. Bei
-     VAR color, mode : BYTE;
-  kann TPUTUNER aus
-     color := 1;
-     mode  := 0;
-  einen mov-Befehl machen.
+  + Einfache Anweisungen / WITH: TPUTUNER verwaltet größtenteils nur
+    eine Indirektionsebene. Die CSE kann mehr, erwischt aber auch nicht
+    alles.
+  + Zuweisungsketten / Wert direkt nach Ermittlung benutzen, damit
+    Registerwerte wiederverwendet werden können.
+  + Variablen zusammenfassen: Variablen, die oft gemeinsam genutzt
+    werden, in den selben VAR-Block direkt beieinander packen (->
+    mehrere Variablen können mit einem `mov' verwendet werden).
+  + Kurze, häufig benutzte Variablen zuerst deklarieren, vor den
+    großen (-> 8-bit Displacements).
+  + Variablen, die häufig im Paar als Parameter übergeben werden,
+    zusammen definieren: statische Variablen/Record-Elemente als
+    `VAR y, x:INTEGER', lokale als `VAR x, y:INTEGER' (-> `foo(x,y)'
+    kann diese als einen LONGINT übergeben bekommen).
 
 
 Debuglistings
 --------------
 
   Die Debuglistings (--debug-dump) haben die Dateinamen
-  `blockX.passY', wobei X die Blocknummer (hex) und Y die Pass-Nummer
-  (dez) ist. Es werden nur die Optimizer-Passes protokolliert, nicht
-  die Reassembler-Passes, da letztere effektiv nichts ändern.
+  `blockX.passY' (`blockX.pY' unter DOS), wobei X die Blocknummer (hex)
+  und Y die Pass-Nummer (dez) ist. Es werden nur die Optimizer-Passes
+  protokolliert, nicht die Reassembler-Passes, da letztere effektiv
+  nichts ändern.
 
   Das Format der Dumps ist ungefähr so:
 
@@ -544,38 +530,16 @@ Debuglistings
   Relocation-Einträge werden von TPUTUNER nicht weiter analysiert, bis 
   auf die Annahme, daß der Wert `ro=' zur Berechnung des Abstandes im
   Speicher von zwei sonst identischen Einträgen benutzt werden kann,
-  und das bestimmte Relocations Systemaufrufe der Unit SYSTEM bezeichnen:
-  TPUTUNER benutzt die Systemaufrufe `long_mul' und `long_sqr'.
-
-  Mit diesem Script können 2 Dumps verglichen werden, ohne die Offsets
-  an den Zeilenanfängen mitzuvergleichen:
-  ----- hier abbeißen -----
-  #! /bin/bash
-  diff -u <(sed 's/[ 0-9a-f]*://' $1) <(sed 's/[ 0-9a-f]*://' $2)
-  ----- hier auch -----
-  Aufruf: `./ldiff blockXX.pass0 blockXX.pass1 | less'
-
-  bzw. für DOSianer (mit Unix-sed - obwohl man sicher auch EDLIN dazu
-  überreden kann):
-  ----- schnipp -----
-  @echo off
-  sed 's/[ 0-9a-f]*://' <%1 >temp1.$$$
-  sed 's/[ 0-9a-f]*://' <%2 >temp2.$$$
-  fc temp1.$$$ temp2.$$$
-  del temp1.$$$
-  del temp2.$$$
-  ----- schnapp -----
-  Aufruf: `ldiff blockXX.pass0 blockXX.pass1'
-  bzw.    `command /c ldiff blockXX.pass0 blockXX.pass1 | more'
-  (Batch-Dateien kann man nicht mit Pipes verwenden)
+  und das bestimmte Relocations Systemaufrufe der Unit SYSTEM bezeichnen
+  (siehe tpufmt.h): long_mul, long_sqr und sload.
 
 
 Compilieren
 ------------
 
-  Ich compiliere TPUTUNER üblicherweise unter Linux mit gcc-2.8.1+ mit dem
-  beliegenden Makefile. Unter DOS, mit DJGPP 2.02+ compiliert TPUTUNER
-  "out-of-the-box" mit dem Kommando `gmake LIBS=-lstdcxx'
+  Ich compiliere TPUTUNER üblicherweise unter Linux mit gcc-2.8.1 oder
+  neuer mit dem beliegenden Makefile. Unter DOS, mit DJGPP 2.02+
+  compiliert TPUTUNER "out-of-the-box" mit GNU make.
 
 
 Autor, Legalesisch
@@ -593,11 +557,14 @@ Autor, Legalesisch
   DEN SCHADEN SELBST AUFKOMMEN. WENN SIE DIESES RISIKO NICHT AUF SICH
   NEHMEN WOLLEN, DÜRFEN SIE tputuner NICHT EINSETZEN.
 
-  Ich verwende tputuner im täglichen Einsatz mit einem 70000+ Zeilen
-  Projekt, "kritische" Fehler fallen mir also meistens auf. Vielleicht
-  verwenden Sie aber ander Code-Muster als ich, so das tputuner auf die
-  Nase fällt. Oder der Fehler ist so subtil, daß er kaum auffällt. Ich
-  hatte einmal einen Fall, daß in meiner grafischen Anwendung die Be-
-  schriftungen der Buttons um 1 Pixel verschoben waren -- schuld war
-  tputuner. Trotzdem scheint tputuner relativ stabil zu sein.
+  Ich verwende tputuner im täglichen Einsatz mit PCC (70000+ Zeilen),
+  "kritische" Fehler fallen mir also meistens auf. Vielleicht verwenden
+  Sie aber ander Code-Muster als ich, so das tputuner auf die Nase fällt.
+  Oder der Fehler ist so subtil, daß er kaum auffällt. Ich hatte einmal
+  einen Fall, daß in meiner grafischen Oberfläche die Beschriftungen der
+  Buttons um 1 Pixel verschoben waren -- schuld war tputuner. Trotzdem
+  scheint tputuner relativ stabil zu sein.
 
+
+-eof-
+Die Datei ist schon zuende, dieser Text ist nur eine Halluzination.
