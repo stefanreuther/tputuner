@@ -34,8 +34,9 @@ Aufruf
   -r, --reg-alloc
   -m, --sort-moves
   -c, --combine-strings
+  -g, --cse
        Legen die Art der Optimierung fest. Standardmäßig sind die
-       Optionen eingeschaltet (bis auf -r, -c), ausgeschaltet werden
+       Optionen außer -r, -c und -g eingeschaltet, ausgeschaltet werden
        sie mit `-A' (Großbuchstaben für kurze Optionen) bzw.
        `--no-data-flow-analysis'.
        Abschalten einer Optimierung beeinflußt u.U. jedoch auch die
@@ -415,6 +416,33 @@ Optimierungen
   letztere eingeschaltet sein, um --sort-moves zu verwenden.
 
 
+* Common Subexpression Elimination (--cse)
+
+  Ungefähr das, was die CSE in "richtigen" Compilern macht: wiederholende
+  Codeschnipsel weglassen. Wenn TPUTUNER eine Codefolge der Form
+	<codeA>
+	<codeB>
+	<codeA>
+  findet, wobei <codeB> das Ergebnis von <codeA> bestehen läßt, kann
+  das zweite <codeA> weggelassen werden. Z.B. wird `p^.q^.x := p^.q^.y;'
+  von Turbo Pascal zu
+	les	di, [p]             \  codeA
+	les	di, [es:di+10]      /
+	mov	ax, [es:di]         >  codeB
+	les	di, [p]             \
+	les	di, [es:di+10]      /  codeA
+	mov	[es:di], ax
+  Die zweite Adreßrechnung kann weggelassen werden.
+
+  Diese Optimierung ist standardmäßig ausgeschaltet, weil
+  + sie langsam ist (die Suche nach gleichen Codestücken ist mindestens
+    O(n^2))
+  + hier Zeiger-Aliasing-Probleme besonders deutlich werden. TPUTUNER hat
+    eine ultrasimple Aliasing-Erkennung. Wie leicht man diese aushebeln
+    kann, verbleibt zu ermitteln: wenn sowohl <codeA> als auch <codeB>
+    auf eine Speicherzelle [es:di+10] schreiben, wird Aliasing angenommen.
+
+
 * String-Kombinierung (--combine-strings)
 
   (noch nicht fertig) Turbo Pascal faßt gleiche Stringkonstanten nur
@@ -467,8 +495,6 @@ Optimierungen
   Funktion - diese Variablen sind eh nicht mehr erreichbar. TPUTUNER
   kann stellenweise die implizite @Result-Variable komplett
   eliminieren.
-
-  Common Subexpression Elimination (CSE): derzeit noch nicht möglich.
 
   Loop Unrolling (Schleifen aufrollen), Function Inlining: Diese
   Optimierungen geben zwar den größten Geschwindigkeitszuwachs,
@@ -542,18 +568,19 @@ TPUTUNER unterstützen
 
 * Einfache Anweisungen / WITH
 
+  [nicht nötig mit CSE]
+
      p^.foo[i].bar := p^.foo[i].baz;   { schlecht }
      WITH p^.foo[i] DO bar:=baz;       { besser }
 
      p^.next^.next := p^.next^.prev;   { schlecht }
      q:=p^.next; q^.next:=q^.prev;     { besser }
 
-  TPUTUNER verwaltet derzeit nur eine `Indirektionsebene' und kann
-  somit die Gleichheit zweier Ausdrücke nicht erkennen, dazu fehlt die 
-  CSE (Common Subexpression Elimination). In den `besser'-Beispielen
-  wird eine Temporärvariable benutzt und damit dem komplexen Ausdruck
-  ein Name gegeben. Bei WITH geschieht dies implizit. Das gilt
-  natürlich auch für arithmetische Operationen:
+  Ohne CSE verwaltet TPUTUNER nur eine `Indirektionsebene' und kann
+  somit die Gleichheit zweier Ausdrücke nicht erkennen. In den
+  `besser'-Beispielen wird eine Temporärvariable benutzt und damit
+  dem komplexen Ausdruck ein Name gegeben. Bei WITH geschieht dies
+  implizit. Das gilt natürlich auch für arithmetische Operationen:
 
      a[i] := 2*i+2*j+c[5*d]+3;
      b[i] := 2*i+3*j+c[5*d]+3;
@@ -650,6 +677,14 @@ Debuglistings
   Aufruf: `ldiff blockXX.pass0 blockXX.pass1'
   bzw.    `command /c ldiff blockXX.pass0 blockXX.pass1 | more'
   (Batch-Dateien kann man nicht mit Pipes verwenden)
+
+
+Compilieren
+------------
+
+  Ich compiliere TPUTUNER üblicherweise unter Linux mit gcc-2.8.1+ mit dem
+  beliegenden Makefile. Unter DOS, mit DJGPP 2.02+ compiliert TPUTUNER
+  "out-of-the-box" mit dem Kommando `gmake LIBS=-lstdcxx'
 
 
 Autor, Legalesisch

@@ -814,8 +814,6 @@ TAction check_mov_pop(CInstruction* i)
     if(i->args[1]->uses_reg(i->next->args[0]->reg))
         return A_BAD;
 
-    cout << "SWAP ";
-
     CInstruction* n = new CInstruction(I_MOV,
                                        new CArgument(*i->args[0]),
                                        new CArgument(*i->args[1]));
@@ -834,8 +832,6 @@ TAction check_push_pop(CInstruction* i)
        || !(*i->args[0] == *i->next->args[0]))
         return A_BAD;
     
-    cout << "DBL ";
-
     CInstruction* n = i->next;
     i->next = n->next;
     i->next->prev = i;
@@ -868,7 +864,8 @@ TAction (*functions[])(CInstruction* i) = {
     check_double_mov,
     check_mov_pop,
     check_push_pop,
-    last_function };
+    last_function
+};
 
 /*
  *  Hauptroutine der Peephole-Optimierung
