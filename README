@@ -581,7 +581,8 @@ Debuglistings
   Relocation-Einträge werden von TPUTUNER nicht weiter analysiert, bis 
   auf die Annahme, daß der Wert `ro=' zur Berechnung des Abstandes im
   Speicher von zwei sonst identischen Einträgen benutzt werden kann,
-  und das bestimmte Relocations Systemaufrufe der Unit SYSTEM bezeichnen.
+  und das bestimmte Relocations Systemaufrufe der Unit SYSTEM bezeichnen:
+  TPUTUNER benutzt die Systemaufrufe `long_mul' und `long_sqr'.
 
   Mit diesem Script können 2 Dumps verglichen werden, ohne die Offsets
   an den Zeilenanfängen mitzuvergleichen:

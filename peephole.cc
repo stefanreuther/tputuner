@@ -15,6 +15,7 @@
 #include "dfa.h" /* für flag_check() */
 #include "optimize.h"
 #include "global.h"
+#include "tpufmt.h"
 
 extern int sys_unit_offset;     // in tputuner.cc
 
@@ -467,7 +468,7 @@ TAction check_maybe_unary(CInstruction* p)
        && op->insn != I_XOR)
         return A_BAD;
     if(!(*op->args[0] == *p->args[0]) ||
-       (op->args[1]->type != CArgument::IMMEDIATE && op->args[1]->type != CArgument::MEMORY)
+       (op->args[1]->type != CArgument::IMMEDIATE && op->args[1]->type != CArgument::REGISTER)
        || op->args[1]->uses_reg_part(p->args[0]->reg))
         return A_BAD;
 
@@ -476,7 +477,7 @@ TAction check_maybe_unary(CInstruction* p)
     if(mov->insn != I_MOV || !(*mov->args[0] == *p->args[1])
        || !(*mov->args[1] == *p->args[0]))
         return A_BAD;
-    
+
     /* can we modify the register? */
     bool canmod = can_modify_reg(mov->next, p->args[0]->reg);
 
@@ -634,6 +635,10 @@ TAction check_zero_arit(CInstruction* p)
  *  call <un=sys_unit_offset, rt=30, rb=28, ro=0>
  *  => mov cx,wert
  *     imul cx
+ *
+ *  cwd
+ *  call <un=sys_unit_offset, rt=30, rb=50, ro=0>
+ *  => imul ax
  */
 TAction check_cwd_longmul(CInstruction* p)
 {
@@ -641,6 +646,25 @@ TAction check_cwd_longmul(CInstruction* p)
         return A_BAD;
     
     CInstruction* movcx = p->next;
+
+    if(!movcx)
+        return A_BAD;
+    if(movcx->insn==I_CALLF) {
+        if(movcx->args[0]->type != CArgument::IMMEDIATE)
+            return A_BAD;
+        CRelo* r = movcx->args[0]->reloc;
+        if(!r || r->unitnum!=sys_unit_offset || r->rtype!=CODE_PTR_REF
+           || r->rblock != SYS_LONG_SQR
+           || r->rofs!=0)
+            return A_BAD;
+        delete movcx->args[0];
+        movcx->args[0] = new CArgument(TRegister(rAX));
+        movcx->insn = I_IMUL;
+        movcx->opsize = 2;
+        cout << "Y";
+        return A_DELETE;
+    }
+    
     if(!movcx || movcx->insn!=I_MOV || !movcx->args[0]->is_reg(rCX)
        || movcx->args[1]->type != CArgument::IMMEDIATE
        || movcx->args[1]->reloc || (movcx->args[1]->immediate & 0x8000))
@@ -655,11 +679,10 @@ TAction check_cwd_longmul(CInstruction* p)
     if(!call || call->insn != I_CALLF || call->args[0]->type != CArgument::IMMEDIATE)
         return A_BAD;
     CRelo* r = call->args[0]->reloc;
-    if(!r || r->unitnum!=sys_unit_offset || r->rtype!=0x30 || r->rblock != 0x28
+    if(!r || r->unitnum!=sys_unit_offset || r->rtype!=CODE_PTR_REF || r->rblock != SYS_LONG_MUL
        || r->rofs != 0)
         return A_BAD;
 
-    cout << "X";
     delete xorbx->args[0];
     delete xorbx->args[1];
     delete xorbx->args[2];
@@ -669,6 +692,7 @@ TAction check_cwd_longmul(CInstruction* p)
     xorbx->next = call->next;
     xorbx->next->prev = xorbx;
     delete call;
+    cout << "X";
     return A_DELETE;
 }
 

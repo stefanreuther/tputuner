@@ -52,4 +52,12 @@ enum {
     word    Offset (Ziel)
     word    Offset, an dem relo eingetragen wird
 */
+
+enum {
+    SYS_LONG_SQR = 0x50,        /* in: dx:ax=value  out: dx:ax=value^2 */
+    SYS_LONG_MUL = 0x28,        /* in: dx:ax=a, cx:bx=b  out: dx:ax=a*b */
+
+    CODE_PTR_REF = 0x30
+};
+
 #endif
