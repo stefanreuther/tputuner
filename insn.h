@@ -60,6 +60,7 @@ public:
     bool is_rm() { return type==MEMORY || is_word_reg() || is_byte_reg(); }
     bool is_byte_imm() { return !reloc && (immediate>=-128) && (immediate<=127); }
     bool is_immed(int i) { return type==IMMEDIATE && !reloc && immediate==i; }
+    bool is_immed() { return type==IMMEDIATE && !reloc; }
     bool is_reg(TRegister r) { return type==REGISTER && reg==r; }
     bool uses_reg(TRegister r);
     bool uses_reg_part(TRegister r);
@@ -123,7 +124,7 @@ public:
     bool byte_insn();
 
     void print(ostream& cout);
-    void assemble(CCodeWriter& c);
+    CInstruction* assemble(CCodeWriter& c);
 
     bool operator==(const CInstruction& i) const;
 };

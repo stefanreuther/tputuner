@@ -181,7 +181,7 @@ CCWCounter* recalc_offsets(CInstruction* insn)
     while(insn) {
 	insn->ip = base_offset + w->bytes;
 	try {
-	    insn->assemble(*w);
+	    insn = insn->assemble(*w);
 	}
 	catch(string& s) {
 	    if(insn->ip != base_offset + w->bytes) {
@@ -193,7 +193,7 @@ CCWCounter* recalc_offsets(CInstruction* insn)
 	    } else
 		throw string("Logic error: ") + s;
 	}
-	insn = insn->next;
+	//insn = insn->next;
     }
 
     return w;
@@ -254,8 +254,8 @@ void reassemble(CNewCode* nc, int my_offset, CInstruction* _insn, CCWCounter* wc
 		} else
 		    throw string("Reassembly error: can't stabilize code, giving up");
 	    }
-	    insn->assemble(*w);
-	    insn=insn->next;
+	    insn = insn->assemble(*w);
+	    //insn=insn->next;
 	}
 	
 	if(w->code_left || w->relo_left) {

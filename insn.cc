@@ -385,7 +385,7 @@ bool CInstruction::byte_insn()
 /*
  *  diesen Befehl assemblieren
  */
-void CInstruction::assemble(CCodeWriter& w)
+CInstruction* CInstruction::assemble(CCodeWriter& w)
 {
     switch(insn) {
     case I_LABEL: break;
@@ -438,9 +438,31 @@ void CInstruction::assemble(CCodeWriter& w)
 	} else if(args[0]->type==CArgument::IMMEDIATE) {
 	    /* push imm */
 	    if(args[0]->is_byte_imm()) {
+                if(do_386 && next && next->insn==I_PUSH) {
+                    if(next->args[0]->is_immed() && next->args[0]->is_byte_imm() &&
+                       ((next->args[0]->immediate>=0 && args[0]->is_immed(0))
+                        || (next->args[0]->immediate<0 && args[0]->is_immed(-1)))) {
+                        //cout << "{0}";
+                        w.wb(0x66);
+                        w.wb(0x6A);
+                        w.wb(next->args[0]->immediate);
+                        next->ip = ip;
+                        return next->next;
+                    }
+                }
 		w.wb(0x6A);
 		w.wb(args[0]->immediate);
 	    } else {
+                if(do_386 && next && next->insn==I_PUSH
+                   && next->args[0]->type==CArgument::IMMEDIATE && !next->args[0]->is_byte_imm()) {
+                    //cout << "{1}";
+                    w.wb(0x66);
+                    w.wb(0x68);
+                    next->args[0]->write_immed(w);
+                    args[0]->write_immed(w);
+                    next->ip = ip;
+                    return next->next;
+                }
 		w.wb(0x68);
 		args[0]->write_immed(w);
 	    }
@@ -453,9 +475,22 @@ void CInstruction::assemble(CCodeWriter& w)
 	    case rDS: w.wb(0x1E); break;
 	    default: break;
 	    }
-	} else
+	} else {
 	    /* push rm16 */
+            if(do_386 && next && next->insn==I_PUSH && next->args[0]->type==CArgument::MEMORY) {
+                args[0]->inc_imm(-2);
+                if(*args[0] == *next->args[0]) {
+                    /* zwei push r/m zusammenfassen */
+                    //cout << "{2}";
+                    args[0]->write_rm(w, 0xFF, 6, true, 0x66);
+                    args[0]->inc_imm(2);
+                    next->ip = ip;
+                    return next->next;
+                }
+                args[0]->inc_imm(2);
+            }
 	    args[0]->write_rm(w, 0xFF, 6);
+        }
 	break;
     case I_POP:
 	if(args[0]->is_word_reg()) {
@@ -631,6 +666,20 @@ void CInstruction::assemble(CCodeWriter& w)
 		    w.wb(args[1]->immediate);
 		} else {
 		    /* mov rm16,i16 */
+                    if(do_386 && next && next->insn==I_MOV && next->args[0]->type==CArgument::MEMORY
+                       && next->args[1]->type==CArgument::IMMEDIATE) {
+                        args[0]->inc_imm(2);
+                        if(*args[0] == *next->args[0]) {
+                            //cout << "{3}";
+                            args[0]->inc_imm(-2);
+                            args[0]->write_rm(w, 0xC7, 0, true, 0x66);
+                            args[1]->write_immed(w);
+                            next->args[1]->write_immed(w);
+                            next->ip = ip;
+                            return next->next;
+                        }
+                        args[0]->inc_imm(-2);
+                    }
 		    args[0]->write_rm(w, 0xC7, 0);
 		    args[1]->write_immed(w);
 		}
@@ -768,6 +817,7 @@ void CInstruction::assemble(CCodeWriter& w)
 	}
 	break;
     }
+    return next;
 }
 
 /*

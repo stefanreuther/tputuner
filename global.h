@@ -19,6 +19,7 @@ extern bool do_early_jmp;    // Sprünge vorziehen
 extern bool do_late_jmp;     // Sprünge nach hinten ziehen
 extern bool do_reg_alloc;    // Register-Allokierung
 extern bool do_string_comb;  // Strings kombinieren
+extern bool do_sort_moves;   // movs sortieren
 
 class CCodeBlock;
 class CNewCode;

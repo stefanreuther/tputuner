@@ -935,6 +935,23 @@ CInstruction* optimize_jcc_or_setcc(CInstruction* insn)
     }
  exit_loop:
 
+    if(ret->insn == I_JCC && ret->param == 5 && ret->prev) {
+        /* jnz garantiert, daß das Ergebnis des vorigen Befehls 0 war */
+        insn = ret->prev;
+        if(insn->insn == I_OR || insn->insn == I_AND || insn->insn == I_XOR
+           || insn->insn == I_ADD || insn->insn == I_SUB || insn->insn == I_ADC
+           || insn->insn == I_SBB || insn->insn == I_INC || insn->insn == I_DEC) {
+            if(insn->args[0]->type == CArgument::REGISTER && insn->args[0]->is_word_reg()) {
+                if(!ret->args[1])
+                    ret->args[1] = new CArgument(int(0));
+                TRegister r = insn->args[0]->reg;
+                values[r].used = true;
+                values[r].set_const(0, ret->args[1]);
+                cout << "[[" << insn->ip << "]]";
+            }                
+        }
+    }
+
     if(ret->insn == I_JCC) {
 	if(ret->next && ret->next->insn==I_JMPN
 	   && ret->args[0]->type==CArgument::LABEL
