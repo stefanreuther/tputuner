@@ -1,7 +1,7 @@
 /*
  *  Common Subexpression Elimination
  *
- *  (c) copyright 2000 Stefan Reuther
+ *  (c) copyright 2000,2001 Stefan Reuther
  *
  *  Verfahren:
  *  - innerhalb eines basic blocks
@@ -316,7 +316,12 @@ bool check_dependencies(OperandSet& a, OperandSet& b)
 
 /* CSE durchführen, wobei a1,a2->Anfang der <codeA>-Stücken */
 /* Precondition: *a1 == *a2 */
-bool try_cse(CInstruction* a1, CInstruction* a2)
+/* les==true -> a1 ist `les foo, bar' und a2 ist `mov foo, bar'
+   diese werden als identisch betrachtet. Das sollte keine Probleme
+   geben; die entsprechende Sequenz `mov es, bar[2]; mov foo, bar'
+   am Anfang wuerde exakt gleich optimiert. (der Parameter les hat
+   dz. keinen Einfluss) */
+bool try_cse(CInstruction* a1, CInstruction* a2, bool les)
 {
     CInstruction* b = a1->next;
     CInstruction* a2end = a2->next;
@@ -405,7 +410,12 @@ CInstruction* do_cse_once(CInstruction* insn)
         if(is_break(a2))
             return insn;
         if(*insn == *a2) {
-            if(try_cse(insn, a2))
+            if(try_cse(insn, a2, false))
+                return insn;
+        } else if(insn->insn == I_LES && a2->insn == I_MOV
+                  && *insn->args[0] == *a2->args[0]
+                  && *insn->args[1] == *a2->args[1]) {
+            if(try_cse(insn, a2, true))
                 return insn;
         }
         a2 = a2->next;
