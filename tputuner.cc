@@ -466,14 +466,15 @@ TOption options[] = {
     { 'e', "early-jump", &do_early_jmp,            "jump earlier to re-use identical code" },
     { 'l', "late-jump", &do_late_jmp,              "jump later to re-use identical code" },
     { 'r', "reg-alloc", &do_reg_alloc,             "basic register re-allocation" },
-    { 'c', "string-combination", &do_string_comb,  "combine common strings" },
+    { 'c', "combine-strings", &do_string_comb,     "combine common strings" },
+    { 'm', "sort-moves", &do_sort_moves,           "sort `mov' insns" },
     { '3', "386", &do_386,                         "allow handling of some 386 insns" },
     { 0, 0, 0, 0 }
 };
 
 void help()
 {
-    cout << "Stefan's TPU Tuner - (c) copyright 1998 by Stefan Reuther" << endl
+    cout << "Stefan's TPU Tuner - (c) copyright 1998,1999,2000 by Stefan Reuther" << endl
 	 << endl
 	 << "Usage: tputuner [-options] file.in [file.out]" << endl
 	 << endl
@@ -574,12 +575,16 @@ int main(int argc, char* argv[])
     if(!outfile) outfile=infile;
 
     if(do_early_jmp && !do_remunused) {
-        do_remunused = true;
+        do_early_jmp = false;
         cerr << "tputuner: early jump requires unused code removal" << endl;
     }
     if(do_late_jmp && !do_remunused) {
-        do_remunused = true;
+        do_late_jmp = false;
         cerr << "tputuner: late jump requires unused code removal" << endl;
+    }
+    if(do_sort_moves && !do_peephole) {
+        do_sort_moves = false;
+        cerr << "tputuner: move sorting requires peephole optimisation" << endl;
     }
 
     /* und action! */
