@@ -1,0 +1,51 @@
+#! /bin/sh
+#
+#  Aufruf: ./annotate <quelltext.pas | less
+#
+#  markiert alle Codeblock-Anfänge mit einem Kommentar der Form
+#  "{### block1d0 ###}".
+#
+#  (c) copyright 1999 Stefan Reuther <Streu@gmx.de>
+#
+
+awk '
+BEGIN {
+  working = 0;
+  num = 0;
+  nest = 0;
+}
+
+/^ *(CONSTRUCTOR|DESTRUCTOR|FUNCTION|PROCEDURE)/ {
+  if(working) {
+    if(/FORWARD;/ || /INLINE/) {
+      print; 
+      next;
+    }
+    s = $0;
+    getline;
+    if(/FORWARD;/ || /INLINE/) {
+      print s;
+      print;
+      next;
+    }
+    nest++;
+    print s;
+  }
+}
+
+/^ *BEGIN/ {
+  if(working && nest) {
+    printf "{### block%x ###}\n", num;
+    print;
+    num += 8;
+    nest--;
+    next;
+  }
+}
+
+/^IMPLEMENTATION/ {
+  working = 1;
+}
+
+{ print }
+' 2>/dev/null
