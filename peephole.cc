@@ -574,8 +574,6 @@ TAction check_for_init(CInstruction* p)
        || p->next->args[0]->label != q->next)
         return A_BAD;
 
-    cout << "~";
-
     CInstruction* j = p->next;         // jmp
     p->next = j->next;
     delete j;
