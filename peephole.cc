@@ -102,7 +102,7 @@ TAction check_zerotest(CInstruction* p)
     if((p->insn==I_ADD || p->insn==I_SUB || p->insn==I_OR
         || p->insn==I_AND || p->insn==I_XOR || p->insn==I_INC
         || p->insn==I_DEC)
-       && p->args[0]->type==CArgument::REGISTER && p->next) {
+       /*&& p->args[0]->type==CArgument::REGISTER*/ && p->next) {
         /*
          *  op reg,xxx
          *  nulltest reg
@@ -111,17 +111,20 @@ TAction check_zerotest(CInstruction* p)
         CInstruction* in = p->next;
         if(in->insn==I_OR || in->insn==I_AND) {
             /* and/or */
-            if(in->args[0]->type != CArgument::REGISTER
-               || in->args[0]->reg != p->args[0]->reg
+            if(/*in->args[0]->type != CArgument::REGISTER
+               || in->args[0]->reg != p->args[0]->reg*/
+               !(*in->args[0] == *p->args[0])
                || !(*in->args[0]==*in->args[1]))
                 return A_BAD;
         } else if(in->insn==I_CMP) {
             /* cmp reg,0 */
-            if(in->args[0]->type != CArgument::REGISTER
-               || in->args[0]->reg != p->args[0]->reg
+            if(/*in->args[0]->type != CArgument::REGISTER
+               || in->args[0]->reg != p->args[0]->reg*/
+               !(*in->args[0] == *p->args[0])
                || !in->args[1]->is_immed(0))
                 return A_BAD;
-        } else return A_BAD;
+        } else
+            return A_BAD;
 
         /* wir können den nächsten Befehl wegwerfen */
         p->next = in->next;
@@ -393,6 +396,20 @@ TAction check_mov(CInstruction* p)
             return A_RESCAN;
         }
     }
+
+    /*
+     *  mov a,b
+     *  mov b,a
+     */
+    if(p->next->insn == I_MOV &&
+       *p->args[0] == *p->next->args[1] &&
+       *p->args[1] == *p->next->args[0]) {
+        /* einen löschen */
+        CInstruction* n = p->next;
+        p->next = n->next;
+        delete n;
+        return A_RESCAN;
+    }
     return A_BAD;
 }
 
@@ -401,18 +418,128 @@ TAction check_mov(CInstruction* p)
  */
 TAction check_xchg(CInstruction* p)
 {
-    if(p->insn!=I_XCHG || !p->next || p->next->insn!=I_XCHG) return A_BAD;
+    if(p->insn!=I_XCHG || !p->next) return A_BAD;
 
     CInstruction* n = p->next;
+    if(n->insn != I_XCHG && n->insn != I_MOV)
+        return A_BAD;
+    
     if((*p->args[0]==*n->args[0] && *p->args[1]==*n->args[1])
        || (*p->args[1]==*n->args[0] && *p->args[0]==*n->args[1])) {
-        /*
-         *  xchg foo,bar
-         *  xchg foo,bar
-         *  -> löschen
-         */
-        p->next = n->next;
-        delete n;
+        if(p->next->insn == I_XCHG) {
+            /*
+             *  xchg foo,bar
+             *  xchg foo,bar
+             *  -> löschen
+             */
+            p->next = n->next;
+            delete n;
+            return A_DELETE;
+        } else {
+            /*
+             *  xchg foo,bar
+             *  mov foo,bar
+             *  -> xchg löschen, mov umdrehen
+             */
+            CArgument* a = n->args[0];
+            n->args[0] = n->args[1];
+            n->args[1] = a;
+            return A_DELETE;
+        }
+    }
+    return A_BAD;
+}
+
+/*
+ *  mov reg,[foo]
+ *  op reg,{reg,imm}
+ *  mov [foo],reg
+ */
+TAction check_maybe_unary(CInstruction* p)
+{
+    /* mov reg,[foo] */
+    if(p->insn != I_MOV || (!p->args[0]->is_word_reg() && !p->args[0]->is_byte_reg())
+       || p->args[1]->type != CArgument::MEMORY)
+        return A_BAD;
+
+    /* op reg,{imm,mem} */
+    CInstruction* op = p->next;
+    if(op->insn != I_ADD && op->insn != I_OR && op->insn != I_ADC
+       && op->insn != I_SBB && op->insn != I_AND && op->insn != I_SUB
+       && op->insn != I_XOR)
+        return A_BAD;
+    if(!(*op->args[0] == *p->args[0]) ||
+       (op->args[1]->type != CArgument::IMMEDIATE && op->args[1]->type != CArgument::MEMORY)
+       || op->args[1]->uses_reg_part(p->args[0]->reg))
+        return A_BAD;
+
+    /* mov [foo],reg */
+    CInstruction* mov = op->next;
+    if(mov->insn != I_MOV || !(*mov->args[0] == *p->args[1])
+       || !(*mov->args[1] == *p->args[0]))
+        return A_BAD;
+    
+    /* can we modify the register? */
+    bool canmod = can_modify_reg(mov->next, p->args[0]->reg);
+
+    /* change operands in /op/ statement */
+    delete op->args[0];
+    op->args[0] = new CArgument(*p->args[1]);
+    op->opsize |= p->opsize;
+
+    if(canmod) {
+        /* don't need to reload register */
+        op->next = mov->next;
+        delete mov;
+    } else {
+        /* need reload */
+        CArgument* a = mov->args[0];
+        mov->args[0] = mov->args[1];
+        mov->args[1] = a;
+    }
+
+    return A_DELETE;
+}
+
+/*
+ *  push [mem]
+ *  mov reg,[mem]
+ *  -> tauschen, dann wird push kürzer
+ */
+TAction check_push_reg(CInstruction* p)
+{
+    if(p->insn != I_PUSH || p->args[0]->type != CArgument::MEMORY
+       || p->next->insn != I_MOV || p->next->opsize != 2)
+        return A_BAD;
+
+    CInstruction* n = p->next;
+    if(!(*p->args[0] == *n->args[1]) || !n->args[0]->is_word_reg()
+       || p->args[0]->uses_reg(n->args[0]->reg))
+        return A_BAD;
+
+    n->insn = I_PUSH;
+    delete n->args[1];
+    n->args[1] = 0;
+
+    p->insn = I_MOV;
+    p->args[1] = p->args[0];
+    p->args[0] = new CArgument(n->args[0]->reg);
+
+    return A_RESCAN;
+}
+
+/*
+ *  Mehrere shl's zu einem verbinden
+ *  (passiert bei Arrayindizierung pword^[2*i])
+ */
+TAction check_shift(CInstruction* p)
+{
+    if(p->insn == I_SHL && p->next->insn == I_SHL
+       && p->args[1]->type == CArgument::IMMEDIATE
+       && p->next->args[1]->type == CArgument::IMMEDIATE
+       && !p->args[1]->reloc && !p->next->args[1]->reloc
+       && *p->args[0] == *p->next->args[0]) {
+        p->next->args[1]->immediate += p->args[1]->immediate;
         return A_DELETE;
     }
     return A_BAD;
@@ -433,6 +560,9 @@ TAction (*functions[])(CInstruction* i) = {
     check_smalladd,
     check_mov,
     check_xchg,
+    check_shift,
+    check_push_reg,
+    check_maybe_unary,
     last_function };
 
 /*
@@ -470,17 +600,3 @@ CInstruction* peephole_optimization(CInstruction* insn)
     
     return insn;
 }
-
-#if 0
-	}
-	    /* nicht optimierbar */
-	    go_on = true;
-	if(go_on) {
-	    prev = p;
-	    p = p->next;
-	}
-    }
-    return insn;
-}
-
-#endif
