@@ -377,6 +377,9 @@ Optimierungen
   ist, die durch Labels und/oder Sprünge in andere Funktionen begrenzt
   ist.
 
+  Diese Optimierung wird auch, in kleinen Prozeduren ohne Unterprogramm-
+  aufrufe, lokale Variablen komplett in Register legen.
+
   Diese Optimierung ist standardmäßig deaktiviert, da sie sehr zeitauf-
   wendig ist. Da sie stellenweise Ergebnisse der DFA rückgängig macht (und
   dabei *immer* bessere Ergebnisse liefert), kann sie nur angewendet

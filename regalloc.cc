@@ -6,7 +6,7 @@
 #include "regalloc.h"
 #include "optimize.h"
 
-#undef GLOBAL_ALLOC
+#define GLOBAL_ALLOC
 /* für globale Register Allocation, noch nicht fertig ... */
 
 struct TEstimate {
@@ -314,11 +314,6 @@ void optimize_basic_block(CInstruction* start, CInstruction* end, bool* regs_use
                 use_adr[i] = v;
                 /* Ändern der Argumente zerstört p->args */
                 found = true;
-//                 cout << endl << start->ip << ": Using register " << reg_names[i] << " for "
-//                      << (v?"address":"value") << " of ";
-//                 p->arg->print(cout);
-//                 cout << ", saving " << (v?p->save_if_adr:p->save_if_value)
-//                      << " bytes";
             }
         }
     clear_estimates();
@@ -375,13 +370,42 @@ TEstimate* global_find_best(int min_bp, char* mask)
     return best;
 }
 
+void global_replace(CInstruction* insn, CArgument* a, TRegister r)
+{
+    while(insn) {
+        for(int i = 0; i < changeable_args[insn->insn]; i++)
+            if(insn->args[i] && *insn->args[i] == *a) {
+                delete insn->args[i];
+                insn->args[i] = new CArgument(r);
+                changed = true;
+            }            
+        insn = insn->next;
+    }
+}
+
 /*
  *  Globale Register-Allokation. Versucht, Speichervariablen in
  *  Register zu packen.
  */
 void global_register_allocation(CInstruction* insn, bool* regs_used)
 {
+    CInstruction* pre = 0;
     clear_estimates();
+
+    /* Stackframe überlesen */
+    if(insn->insn == I_ENTER) {
+        pre = insn;
+    } else if(insn->insn == I_PUSH && insn->args[0]->is_reg(rBP)) {
+        insn = insn->next;
+        if(insn->insn == I_MOV && insn->args[0]->is_reg(rBP) &&
+           insn->args[1]->is_reg(rSP))
+            pre = insn;
+    }
+    if(!pre)
+        return;
+    
+    insn = pre->next;
+   
     for(CInstruction* p = insn; p != 0; p = p->next)
         if(p->opsize == 2)
             estimate_insn(p);
@@ -408,12 +432,16 @@ void global_register_allocation(CInstruction* insn, bool* regs_used)
     }
 
     /* Aliase rauswerfen */
-    char* markers = new char[max_bp - min_bp];
-    for(int i = 0; i < max_bp - min_bp; i++)
+    max_bp += 3;                // Max. Operandengröße 4
+    char* markers = new char[max_bp - min_bp + 1];
+    for(int i = 0; i <= max_bp - min_bp; i++)
         markers[i] = 0;
     for(pe = estimated_savings; pe; pe = pe->next) {
         int i = pe->arg->immediate - min_bp;
         markers[i] = markers[i+1] = 1;
+
+        if(pe->arg->immediate < 0)
+            pe->save_if_value += 1 + mem_op_size(pe->arg);
     }
 
     for(CInstruction* p = insn; p; p = p->next) {
@@ -421,10 +449,20 @@ void global_register_allocation(CInstruction* insn, bool* regs_used)
             if(p->args[i] && p->args[i]->type == CArgument::MEMORY
                && p->args[i]->memory[0] == rBP) {
                 int j = p->args[i]->immediate;
-                if(p->opsize == 1)
-                    markers[j - min_bp] = 2;
+                int count = 0;
+                if(p->insn == I_LES || p->insn == I_LDS
+                   || p->insn == I_CALLF || p->insn == I_JMPF)
+                    count = 4;
+                else if(p->opsize == 1)
+                    count = 1;
                 else if((j & 1) != 0)
-                    markers[j - min_bp] = markers[j - min_bp + 1] = 2;
+                    count = 2;
+                
+                for(int q = 0; q < count; q++) {
+                    if(j >= min_bp && j <= max_bp)
+                        markers[j - min_bp] = 2;
+                    j++;
+                }
             }
     }
 
@@ -433,8 +471,23 @@ void global_register_allocation(CInstruction* insn, bool* regs_used)
         if(!regs_used[r]) {
             TEstimate* p = global_find_best(min_bp, markers);
             if(p) {
+                CArgument* arg = new CArgument(*p->arg);
                 p->used = true;
+                regs_used[r] = true;
                 /* Alle Vorkommnisse von /p->arg/ durch /r/ ersetzen */
+                if(p->arg->immediate > 0) {
+                    /* is'n Parameter */
+                    CInstruction* i = new CInstruction(I_MOV,
+                                                       new CArgument(TRegister(r)),
+                                                       new CArgument(*arg));
+                    i->next = pre->next;
+                    i->prev = pre;
+                    i->next->prev = i;
+                    pre->next = i;
+                    changed = true;
+                }
+                global_replace(insn, arg, TRegister(r));
+                delete arg;
             } else
                 break;
         }
@@ -455,7 +508,7 @@ void global_register_allocation(CInstruction* insn, bool* regs_used)
  *  aufnehmen. Basic Blocks sind die Bereiche zwischen einem Label
  *  oder Transfer in Unterprogramm und dem Label/Transfer.
  */
-void register_allocation(CInstruction* insn)
+void register_allocation(CInstruction* oinsn)
 {
     /* Suche unbenutzte Register */
     bool regs_used[rMAX];
@@ -466,7 +519,7 @@ void register_allocation(CInstruction* insn)
     regs_used[rSS] = regs_used[rDS] = regs_used[rSP] = regs_used[rES]
         = regs_used[rBP] = regs_used[rCS] = true;
 
-    insn = insn->next;          // der erste Befehl kann nicht Teil eines Blocks sein
+    CInstruction* insn = oinsn->next;          // der erste Befehl kann nicht Teil eines Blocks sein
     for(CInstruction* p = insn; p; p = p->next) {
         switch(p->insn) {
          case I_LEA:
@@ -513,7 +566,7 @@ void register_allocation(CInstruction* insn)
 #ifdef GLOBAL_ALLOC
     /* können wir global Variablen in Register packen? */
     if(can_global) {
-        global_register_allocation(insn, regs_used);
+        global_register_allocation(oinsn, regs_used);
     }
 #endif
 
