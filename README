@@ -652,8 +652,26 @@ Debuglistings
   (Batch-Dateien kann man nicht mit Pipes verwenden)
 
 
-Autor
-------
+Autor, Legalesisch
+-------------------
 
   Stefan Reuther, <Streu@gmx.de>
+
+  Kopieren dieses Programmes ist ausdrücklich erlaubt. Wenn Sie dieses
+  Programm für mehr als bloß mal einen kurzen Test einsetzen, senden Sie
+  doch bitte eine Mail mit Erfahrungsbericht oder ähnlichem.
+
+  KEINE GARANTIE: DER EINSATZ VON tputuner ERFOLGT AUF EIGENE GEFAHR.
+  FÜR DURCH tputuner ENTSTANDENE SCHÄDEN LEHNE ICH JEGLICHE HAFTUNG AB.
+  WENN SIE SICH MIT tputuner EIN PROGRAMM KAPUTTMACHEN, MÜSSEN SIE FÜR
+  DEN SCHADEN SELBST AUFKOMMEN. WENN SIE DIESES RISIKO NICHT AUF SICH
+  NEHMEN WOLLEN, DÜRFEN SIE tputuner NICHT EINSETZEN.
+
+  Ich verwende tputuner im täglichen Einsatz mit einem 70000+ Zeilen
+  Projekt, "kritische" Fehler fallen mir also meistens auf. Vielleicht
+  verwenden Sie aber ander Code-Muster als ich, so das tputuner auf die
+  Nase fällt. Oder der Fehler ist so subtil, daß er kaum auffällt. Ich
+  hatte einmal einen Fall, daß in meiner grafischen Anwendung die Be-
+  schriftungen der Buttons um 1 Pixel verschoben waren -- schuld war
+  tputuner. Trotzdem scheint tputuner relativ stabil zu sein.
 

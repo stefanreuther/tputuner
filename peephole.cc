@@ -788,19 +788,60 @@ TAction check_double_mov(CInstruction* i)
 
     if(m1->args[0]->type == CArgument::REGISTER
        && m2->args[1]->uses_reg(m1->args[0]->reg)) {
-        cout << "@no" << i->ip;
         return A_BAD;
     }
 
     if(m1->args[0]->type == CArgument::REGISTER || do_size) {
-        cout << "@yes" << i->ip;
         j->insn = I_JCC;
         j->param = i->param ^ 1;
         return A_DELETE;
     } else {
-        cout << "@njet" << i->ip;
         return A_BAD;
     }
+}
+
+/*
+ *   mov REG, <anything>
+ *   pop REG1
+ *   -> tauschen, wenn unabhängig
+ */
+TAction check_mov_pop(CInstruction* i)
+{
+    if(i->insn != I_MOV || i->next->insn != I_POP)
+        return A_BAD;
+    if(i->args[0]->type != CArgument::REGISTER || i->next->args[0]->type != CArgument::REGISTER)
+        return A_BAD;
+    if(i->args[1]->uses_reg(i->next->args[0]->reg))
+        return A_BAD;
+
+    cout << "SWAP ";
+
+    CInstruction* n = new CInstruction(I_MOV,
+                                       new CArgument(*i->args[0]),
+                                       new CArgument(*i->args[1]));
+    n->opsize = i->opsize;
+    n->next = i->next->next;
+    n->prev = i->next;
+    i->next->next = n;
+    n->next->prev = n;
+
+    return A_DELETE;
+}
+
+TAction check_push_pop(CInstruction* i)
+{
+    if(i->insn != I_PUSH || i->next->insn != I_POP
+       || !(*i->args[0] == *i->next->args[0]))
+        return A_BAD;
+    
+    cout << "DBL ";
+
+    CInstruction* n = i->next;
+    i->next = n->next;
+    i->next->prev = i;
+    delete n;
+    
+    return A_DELETE;
 }
 
 TAction last_function(CInstruction* i)
@@ -825,6 +866,8 @@ TAction (*functions[])(CInstruction* i) = {
     check_zero_arit,
     check_cwd_longmul,
     check_double_mov,
+    check_mov_pop,
+    check_push_pop,
     last_function };
 
 /*
