@@ -969,38 +969,92 @@ void optimize_cmp(CInstruction* insn)
 }
 
 /*
+ *  true, wenn Register r 0 ist
+ */
+bool reg_zero(TRegister reg)
+{
+    return values[reg].type == TValue::CONSTANT
+        && values[reg].value->reloc==0 && values[reg].value->immediate==0;
+}
+
+/*
  *  Arithmetik
  */
 CInstruction* optimize_arit(CInstruction* insn)
 {
-    if(insn->args[0]->is_word_reg() && insn->args[1]->is_word_reg()
-       && insn->args[0]->reg == insn->args[1]->reg
-       && (insn->insn == I_XOR || insn->insn == I_SUB)) {
-	/*
-	 * xor reg,reg
-	 * sub reg,reg
-	 */
+    if(insn->args[0]->is_word_reg() && insn->args[1]->is_word_reg()) {
 	TRegister reg = insn->args[0]->reg;
+        if(insn->args[0]->reg == insn->args[1]->reg
+           && (insn->insn == I_XOR || insn->insn == I_SUB)) {
+            /*
+             * xor reg,reg
+             * sub reg,reg
+             */
+            if(values[reg].type==TValue::CONSTANT
+               && values[reg].value->reloc==0 && values[reg].value->immediate==0) {
+                /* die Null haben wir schon im Register */
+                /* xor wegwerfen */
+                if(insn->prev && insn->next) {
+                    CInstruction* i;
+                    insn->next->prev = insn->prev;
+                    insn->prev->next = insn->next;
+                    i = insn->prev;
+                    delete insn;
+                    changed = true;
+                    return i;
+                }
+            }
+            delete insn->args[2];
+            insn->args[2] = new CArgument(0);
+            values[reg].set_const(insn, insn->args[2]);
+            return insn;
+        }
 
-	if(values[reg].type==TValue::CONSTANT
-	   && values[reg].value->reloc==0 && values[reg].value->immediate==0) {
-	    /* die Null haben wir schon im Register */
-	    /* xor wegwerfen */
-	    if(insn->prev && insn->next) {
-		CInstruction* i;
-		insn->next->prev = insn->prev;
-		insn->prev->next = insn->next;
-		i = insn->prev;
-		delete insn;
-		changed = true;
-		return i;
-	    }
-	}
-	
-	delete insn->args[2];
-	insn->args[2] = new CArgument(0);
-	values[reg].set_const(insn, insn->args[2]);
-	return insn;
+        /* ist es ein Befehl mit einem Nullargument? */
+        if(reg_zero(insn->args[1]->reg)) {
+            /*
+             *  op reg, 0
+             *  hat dieselbe Wirkung wie `or reg, reg'
+             *  ... welchen der Optimizer kickt, falls nicht
+             *  benötigt
+             */
+            if(insn->insn != I_ADC && insn->insn != I_SBB) {
+                /* add, sub, and, or, xor, cmp */
+                delete insn->args[1];
+                insn->args[1] = new CArgument(*insn->args[0]);
+                cout << ">";
+                changed = true;
+                return insn;
+            }
+        } else if(reg_zero(insn->args[0]->reg)) {
+            /*
+             *  op 0, reg
+             */
+            switch(insn->insn) {
+             case I_ADD:
+             case I_OR:
+             case I_XOR:
+                /* dasselbe wie MOV */
+                cout << "<";
+                insn->insn = I_MOV;
+                changed = true;
+                break;
+             case I_AND:
+                /* fast-nop */
+                if(insn->prev && insn->next && flag_check(insn->next)) {
+                    CInstruction* i;
+                    insn->next->prev = insn->prev;
+                    insn->prev->next = insn->next;
+                    i = insn->prev;
+                    delete insn;
+                    changed = true;
+                    cout << "-";
+                    return i;
+                }
+                break;
+             default:;
+            } /* kein optimierbarer Befehl */
+        } /* 2. Argument != 0 */
     }
     
     optimize_argument(insn->opsize, insn->args[1], true);
@@ -1129,10 +1183,12 @@ void optimize_unary(CInstruction* insn)
          case I_INC:
 	    insn->args[1] = new CArgument(*values[reg].value);
 	    insn->args[1]->inc_imm(1);
+            values[reg].set_const(insn, insn->args[1]);
 	    return;
          case I_DEC:
 	    insn->args[1] = new CArgument(*values[reg].value);
 	    insn->args[1]->inc_imm(-1);
+            values[reg].set_const(insn, insn->args[1]);
 	    return;
          case I_NOT:
 	    if(values[reg].value->reloc == 0) {
