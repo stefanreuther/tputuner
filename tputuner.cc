@@ -15,6 +15,7 @@
 #include "tpufmt.h"
 #include "optimize.h"
 #include "global.h"
+#include "strcomb.h"
 
 char* unit;        // Original-Unit
 int unit_size;     // Originalgröße
@@ -45,47 +46,6 @@ inline void put_word(int ofs, int w)
     new_unit[ofs++] = w & 255;
     new_unit[ofs] = w >> 8;
 }
-
-class CCodeBlock;
-
-/*
- *  CEntryBlock
- *  repräsentiert einen Entry-Block
- */
-class CEntryBlock {
-public:
-    int ofs;             // Position in unit
-    int entry_ofs;       // Offset in Codeblock
-    string name;
-    char flags;          // Flags für Codeblock
-    CCodeBlock* code;    // Codeblock
-    CEntryBlock(int aofs, CCodeBlock* acode);
-};
-
-/*
- *  CCodeBlock
- *  Ein Code-Block (=Prozedur, OBJ-Datei)
- */
-class CCodeBlock {
-public:
-    typedef enum { UNUSED, OK, MULTI_ENTRY } TStatus;
-    int ofs;            // Position des Codeblock-Headers
-    int code_ofs;       // Position des Maschinencodes
-    int code_size;      // Größe desselben
-    int relo_ofs;       // Position der Relo-Entries
-    int relo_count;     // Anzahl Relo-Entries
-
-    CNewCode* new_code; // neuer Code oder 0 wenn nicht geändert
-
-    CEntryBlock* entry; // Entry-Block, falls bekannt und eindeutig
-    TStatus status;     // Status
-    int id;             // ID = Codeblock-Nummer (0, 8, 16, ...)
-    
-    CCodeBlock(int aofs, int& code_base, int& relo_base, int aid);
-    void SetEntryBlock(CEntryBlock*);
-    void optimize();
-    bool check_relo(int ofs);
-};
 
 list<CEntryBlock*> entry_list;
 list<CCodeBlock*> code_list;
@@ -160,19 +120,6 @@ bool CCodeBlock::check_relo(int ofs)
 
 void CCodeBlock::optimize()
 {
-//     cout << "-vor Start:";
-//     for(int i=0; i<entry->entry_ofs; i++) showc(unit[i+code_ofs]);
-//     cout << endl << "-nach Start:";
-//     for(int i=entry->entry_ofs; i<code_size; i++) showc(unit[i+code_ofs]);
-//     cout << endl << "-relos:" << endl;
-//     for(int i=0; i<relo_count; i++) {
-// 	cout << "  unitnum=" << (int)unit[relo_ofs+8*i]
-// 	     << "  rtype=" << (int)unit[relo_ofs+8*i+1]
-// 	     << "  rblock=" << get_word(relo_ofs+8*i+2)
-// 	     << "  rofs=" << get_word(relo_ofs+8*i+4)
-// 	     << "  ofs=" << get_word(relo_ofs+8*i+6) << endl;
-//     }
-
     /* Prüfe Relozierungen */
     for(int i=0; i<relo_count; i++) {
 	if(!check_relo(relo_ofs + 8*i)) {
@@ -519,6 +466,7 @@ TOption options[] = {
     { 'e', "early-jump", &do_early_jmp,            "jump earlier to re-use identical code" },
     { 'l', "late-jump", &do_late_jmp,              "jump later to re-use identical code" },
     { 'r', "reg-alloc", &do_reg_alloc,             "basic register re-allocation" },
+    { 'c', "string-combination", &do_string_comb,  "combine common strings" },
     { '3', "386", &do_386,                         "allow handling of some 386 insns" },
     { 0, 0, 0, 0 }
 };
@@ -659,6 +607,11 @@ int main(int argc, char* argv[])
                  << "... " << flush;
 	    (*i)->optimize();
 	}
+    }
+
+    if(do_string_comb) {
+        cout << "string combination..." << endl;
+        string_combine(code_list);
     }
 
     cout << "writing new file..." << endl;

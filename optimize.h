@@ -6,13 +6,7 @@
 #ifndef OPTIMIZE_H
 #define OPTIMIZE_H
 
-struct CNewCode {
-    char* code;
-    int   code_size;
-
-    char* relos;
-    int   relo_size;
-};
+#include "global.h"
 
 CNewCode* do_optimize(int id,
 		      char* code, int code_size, int my_ip,
