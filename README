@@ -33,9 +33,9 @@ Aufruf
   -l, --late-jmp
   -r, --reg-alloc
        Legen die Art der Optimierung fest. Standardmäßig sind die
-       Optionen eingeschaltet, ausgeschaltet werden sie mit `-A'
-       (Großbuchstaben für kurze Optionen) bzw. `--no-data-flow-
-       analysis'.
+       Optionen eingeschaltet (bis auf -r), ausgeschaltet werden
+       sie mit `-A' (Großbuchstaben für kurze Optionen) bzw.
+       `--no-data-flow-analysis'.
        Abschalten einer Optimierung beeinflußt u.U. jedoch auch die
        anderen. So erzeugt die Datenflußanalyse manchmal Nullbefehle,
        die von der Peephole-Optimierung entfernt werden. "Das Ganze
@@ -66,9 +66,9 @@ Meldungen während des Ablaufs
   Während des Ablaufs werden Meldungen des folgenden Formates
   ausgegeben:
 
-  - code block #248... 1 2 r1  --> 47 bytes saved (new size = 1247)
-                 \      \   \       \__ gesparter Code in diesem Block
-                  \      \   \__ Reassembler-Passes
+  - code block #248... 1! 2 3 r1  --> 47 bytes saved (new size = 1247)
+                 \      \      \       \__ gesparter Code in diesem Block
+                  \      \      \__ Reassembler-Passes
                    \      \__ Optimierer-Passes
                     \__ Codeblock-Nummer
 
@@ -109,6 +109,8 @@ Meldungen während des Ablaufs
   `@foo: mov ax,offset @foo'. Das ergibt eine Code-absolute Referenz,
   (CS-Const) die TPUTUNER deshalb nicht verwalten kann, da sich die
   Adresse des Befehls während der Optimierung verschieben könnte.
+  Außerdem ist nicht sicher, ob die Adreßangabe im Quellcode anders
+  aussah (`mov ax,offset MyFunction+100').
 
 `Unrecognized relocation item at...'
   Ein Relozierungseintrag stand an einer Stelle, an der TPUTUNER ihn
@@ -572,7 +574,7 @@ Debuglistings
   #! /bin/bash
   diff -u <(sed 's/[ 0-9a-f]*://' $1) <(sed 's/[ 0-9a-f]*://' $2)
   ----- hier auch -----
-  Aufruf: `./ldiff blockXX.pass0 blockXX.pass1'
+  Aufruf: `./ldiff blockXX.pass0 blockXX.pass1 | less'
 
   bzw. für DOSianer (mit Unix-sed - obwohl man sicher auch EDLIN dazu
   überreden kann):
