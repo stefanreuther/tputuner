@@ -8,6 +8,8 @@
 
 #include <string>
 
+using namespace std;
+
 extern bool do_dfa;          // Datenfluﬂanalyse?
 extern bool do_jumpchains;   // Sprungketten optimieren?
 extern bool do_peephole;     // Befehle ersetzen?

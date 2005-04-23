@@ -23,7 +23,7 @@ $(EXENAME): $(OBJECTS)
 	$(GCC) $(CFLAGS) -o $*.o -c $*.cc
 
 clean:
-	rm $(OBJECTS)
+	$(RM) $(OBJECTS)
 
 depend:
 	makedepend -- $(CFLAGS) -- *.cc

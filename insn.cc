@@ -16,9 +16,9 @@
 #include "global.h"
 #include "tpufmt.h"
 
-TRegister bases[8] = { rBX, rBX, rBP, rBP, rSI, rDI, rBP, rBX };
-TRegister index[8] = { rSI, rDI, rSI, rDI, rNONE, rNONE, rNONE, rNONE };
-TRegister def_seg[8] = { rDS, rDS, rSS, rSS, rDS, rDS, rSS, rDS };
+const TRegister base_regs[8] = { rBX, rBX, rBP, rBP, rSI, rDI, rBP, rBX };
+const TRegister index_regs[8] = { rSI, rDI, rSI, rDI, rNONE, rNONE, rNONE, rNONE };
+const TRegister def_seg[8] = { rDS, rDS, rSS, rSS, rDS, rDS, rSS, rDS };
 
 char reg_sizes[] = { 0,
 		     2, 2, 2, 2, 2, 2, 2, 2,
@@ -265,8 +265,8 @@ void CArgument::write_rm(CCodeWriter& w,   // wohin ausgeben?
     /* suche Registerkombination */
     int lo = -1;
     for(int i=0; i<8; i++)
-	if((memory[0]==bases[i] && memory[1]==index[i])
-	   || (memory[1]==bases[i] && memory[0]==index[i])) {
+	if((memory[0]==base_regs[i] && memory[1]==index_regs[i])
+	   || (memory[1]==base_regs[i] && memory[0]==index_regs[i])) {
 	    lo = i;
 	    break;
 	}

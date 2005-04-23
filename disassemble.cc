@@ -669,6 +669,6 @@ CArgument* decode_mod_rm(TRegister* regs)
     }
     if(seg_ovr==rNONE) seg_ovr = def_seg[mod_rm & 7];
     if(relo) disp=0;
-    return new CArgument(bases[mod_rm & 7], index[mod_rm & 7], disp,
+    return new CArgument(base_regs[mod_rm & 7], index_regs[mod_rm & 7], disp,
 			 relo?new CRelo(relo):0, seg_ovr);
 }

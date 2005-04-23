@@ -9,6 +9,8 @@
 #include <iostream>
 #include "codewriter.h"
 
+using namespace std;
+
 class CCodeWriter;
 
 typedef enum { rNONE,
@@ -19,9 +21,9 @@ typedef enum { rNONE,
 
 extern char reg_sizes[];
 extern char reg_values[];
-extern TRegister bases[8];
-extern TRegister index[8];
-extern TRegister def_seg[8];
+extern const TRegister base_regs[8];
+extern const TRegister index_regs[8];
+extern const TRegister def_seg[8];
 extern char* reg_names[];
 
 /*** Relozierung ***/
@@ -31,6 +33,8 @@ struct CRelo {
     CRelo(char* ptr);
     void print(ostream& cout);
     bool operator==(const CRelo& c) const;
+    bool operator!=(const CRelo& a) const
+        { return !(*this == a); }
 };
 
 class CInstruction;
@@ -73,6 +77,8 @@ public:
     void print(ostream& cout);
 
     bool operator==(const CArgument& a) const;
+    bool operator!=(const CArgument& a) const
+        { return !(*this == a); }
 
     void inc_imm(int i) { if(reloc) reloc->rofs+=i; else immediate+=i; }
 
@@ -170,6 +176,8 @@ public:
     CInstruction* assemble(CCodeWriter& c);
 
     bool operator==(const CInstruction& i) const;
+    bool operator!=(const CInstruction& a) const
+        { return !(*this == a); }
 };
 
 bool alias_reg(TRegister modify, TRegister keep);
