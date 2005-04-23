@@ -1,0 +1,20 @@
+#!/bin/bash
+
+for i in *; do
+  case $i in
+    *.*)
+         prefix=${i%.*}
+         suffix=${i#*.}
+         prefix=${prefix:0:8}
+         suffix=${suffix:0:3}
+         newname=$prefix.$suffix
+         ;;
+    *)
+       newname=${i:0:8}
+       ;;
+  esac
+  if test $i != $newname; then
+    echo "$i -> $newname"
+    mv $i $newname || echo FAILED
+  fi
+done
