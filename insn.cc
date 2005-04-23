@@ -151,7 +151,7 @@ bool CArgument::uses_reg(TRegister r)
     if(type==REGISTER)
 	return reg==r;
     else if(type==MEMORY)
-	return (r==memory[0] || r==memory[1]);
+	return (r==memory[0] || r==memory[1] || r==segment);
     else
 	return false;
 }
@@ -172,7 +172,7 @@ bool CArgument::uses_reg_part(TRegister r)
     if(type==REGISTER)
 	return alias_reg(reg, r);
     else if(type==MEMORY)
-	return alias_reg(memory[0], r) || alias_reg(memory[1], r);
+	return alias_reg(memory[0], r) || alias_reg(memory[1], r) || alias_reg(segment, r);
     else
 	return false;
 }

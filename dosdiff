@@ -12,4 +12,4 @@ else
 fi
 dosname=`echo $dosname | tr A-Z a-z`
 
-diff $2 --ignore-space-change -u $1 /dos/p/vplanets/cc/tputuner/$dosname
+diff $2 --ignore-space-change -u $1 /dos/g/planets0/cc/tputuner/$dosname
