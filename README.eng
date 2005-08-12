@@ -15,7 +15,7 @@ What the heck...?
   Pascal 7.0; the format is selected at compile time.
 
   [[ This is a translation of the original German readme file. The
-  source code remains commented in German. ]]
+  source code remains commented mostly in German. ]]
 
 
 Invocation
@@ -400,8 +400,7 @@ Optimisations
 
   + Loop Unrolling.
 
-  + Function Inlining (although I have ideas for a global(!) inliner
-    -- not even gcc can do that ;-)
+  + Function Inlining.
 
   + optimize EXE files. TPUs still have a notice which value is an
     address and which not, EXEs do not have that.
@@ -501,7 +500,9 @@ Debug Listings
 
   TPUTUNER does not analyze relocation entries, except for knowing
   some SYSTEM calls, and that `ro=' can be used to compute the
-  distance between two otherwise identical entries.
+  distance between two otherwise identical entries. The SYSTEM calls
+  we know are long_mul, long_sqr, long_shl, long_shr, and sload;
+  see tpufmt.h.
 
 
 Compiling TPUTUNER

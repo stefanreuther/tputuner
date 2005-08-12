@@ -1,21 +1,21 @@
 /*
- *  tputuner - Ein Programm zur Optimierung von Turbo-Pascal Code
+ *  tputuner - A Program to Optimize Turbo Pascal Code
  *
- *  (c) copyright 1998,1999,2000,2002 by Stefan Reuther
+ *  (c) copyright 1998,1999,2000,2002,2005 by Stefan Reuther
  *
- *  Definitionen zum TPU-Format.
+ *  Definitions regarding the TPU format.
  *
- *  Siehe: INTRFC 7.0
+ *  Compare: INTRFC 7.0
  *    Public Domain by Milan Dadok.
- *    basiert auf einem Program von DJ Murdoch
+ *    based upon a program by DJ Murdoch
  */
 #ifndef TPU_FORMAT_H
 #define TPU_FORMAT_H
 
 #define UNIT_FORMAT 7
 
-/* Flags für Codeblocks */
-/* in ctor/dtor darf der Stackrahmen nicht entfernt werden! */
+/* Flags for code blocks */
+/* we must not remove the stack frame in ctor/dtor! */
 enum {
     FAR_PROC          = 1,
     INLINE_PROC       = 2,
@@ -30,7 +30,7 @@ enum {
 #if UNIT_FORMAT == 6
 #define UNIT_ID "TPU9"
 
-/* Offsets im Unit-Header; head.pas */
+/* Offsets into unit header; head.pas */
 enum {
     OFS_THIS_UNIT     = 0x08,
     OFS_HASHTABLE     = 0x0A,
@@ -53,31 +53,36 @@ enum {
 };
 
 /* Relocation Record:
-    byte    Unit Nummer (Ziel)
-    byte    typ              
+    byte    Unit Number (target)
+    byte    type
                bit 7-6
 	           00 = Code
 		   01 = CS Const
 		   10 = Var
 		   11 = DS Const
 	       bit 5-4
-	           00 = relativ
+	           00 = relative
 		   01 = offset
 		   10 = segment
-		   11 = Zeiger
-    word    Blocknummer (Ziel)
-    word    Offset (Ziel)
-    word    Offset, an dem relo eingetragen wird
+		   11 = pointer
+    word    Block number (target)
+    word    Offset (target)
+    word    Offset, where relocation is applied
 */
 
 enum {
-    /* Blocknummern */
+    /* Block numbers */
     SYS_LONG_SQR = 0x50,        /* in: dx:ax=value  out: dx:ax=value^2 */
     SYS_LONG_MUL = 0x28,        /* in: dx:ax=a, cx:bx=b  out: dx:ax=a*b */
     SYS_LONG_DIV = 0x30,        /* in: dx:ax, cx:bx; out: quot/rem; clobbers si,di */
     SYS_SLOAD    = 0x58,        /* in: push dest, push src  out: src popped */
 
-    /* Typen */
+    /* FIXME: I do no longer have TP6 installed, so I do not know what the
+       real values for these are. Someone who does, please fix this: */
+    SYS_LONG_SHR = 99999,       /* in: dx:ax=shiftee, cx=count; out: dx:ax=result. Unsigned shift, max amount is 31. */
+    SYS_LONG_SHL = 99999,
+
+    /* Types */
     CODE_PTR_REF = 0x30,        /* 4-byte pointer */
     CODE_OFS_REF = 0x50,        /* 2-byte offset */
 
@@ -85,7 +90,7 @@ enum {
     ITYP_TYPE    = 81,
     ITYP_PROC    = 83,
     ITYP_UNIT    = 89,
-    
+
     /* Unit block format (blocks.pas, unit_block_rec) */
     UNIT_BLOCK_NAME = 2,         /* offset of name */
 
@@ -95,7 +100,7 @@ enum {
 #elif UNIT_FORMAT == 7
 #define UNIT_ID "TPUQ"
 
-/* Offsets im Unit-Header; head.pas */
+/* Offsets into Unit header; head.pas */
 enum {
     OFS_THIS_UNIT     = 0x08,
     OFS_HASHTABLE     = 0x0A,
@@ -119,31 +124,33 @@ enum {
 };
 
 /* Relocation Record:
-    byte    Unit Nummer (Ziel)
-    byte    typ              
+    byte    Unit Number (target)
+    byte    type
                bit 7-6
 	           00 = Code
 		   01 = CS Const
 		   10 = Var
 		   11 = DS Const
 	       bit 5-4
-	           00 = relativ
+	           00 = relative
 		   01 = offset
 		   10 = segment
-		   11 = Zeiger
-    word    Blocknummer (Ziel)
-    word    Offset (Ziel)
-    word    Offset, an dem relo eingetragen wird
+		   11 = pointer
+    word    Block number (target)
+    word    Offset (target)
+    word    Offset, where relocation is applied
 */
 
 enum {
-    /* Blocknummern */
+    /* Block numbers */
     SYS_LONG_SQR = 1+0x50,      /* in: dx:ax=value  out: dx:ax=value^2 -- this one seems to no longer be in use. "+1" so it never matches */
     SYS_LONG_MUL = 0x28,        /* in: dx:ax=a, cx:bx=b  out: dx:ax=a*b */
     SYS_LONG_DIV = 0x30,        /* in: dx:ax, cx:bx; out: quot/rem; clobbers si,di */
     SYS_SLOAD    = 0x58,        /* in: push dest, push src  out: src popped */
+    SYS_LONG_SHR = 0x38,        /* in: dx:ax=shiftee, cx=count; out: dx:ax=result. Unsigned shift, max amount is 31. */
+    SYS_LONG_SHL = 0x40,
 
-    /* Typen */
+    /* Types */
     CODE_PTR_REF = 0x30,        /* 4-byte pointer */
     CODE_OFS_REF = 0x50,        /* 2-byte offset */
 

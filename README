@@ -421,8 +421,7 @@ Optimierungen
 
   + Loop Unrolling (Schleifen aufrollen)
 
-  + Function Inlining (Ideen für einen globalen(!) Inliner bestehen
-    aber -- das kann nicht mal gcc ;-)
+  + Function Inlining
 
   + EXE-Dateien optimieren. Bei TPUs steht an den Konstanten noch
     dran, welche eine Adresse ist und welche nicht -- bei EXEn nicht.
@@ -535,7 +534,7 @@ Debuglistings
   auf die Annahme, daß der Wert `ro=' zur Berechnung des Abstandes im
   Speicher von zwei sonst identischen Einträgen benutzt werden kann,
   und das bestimmte Relocations Systemaufrufe der Unit SYSTEM bezeichnen
-  (siehe tpufmt.h): long_mul, long_sqr und sload.
+  (siehe tpufmt.h): long_mul, long_sqr, long_shl, long_shr, und sload.
 
 
 Compilieren

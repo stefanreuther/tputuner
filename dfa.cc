@@ -11,6 +11,9 @@
 #include "dfa.h"
 #include "optimize.h"
 #include "global.h"
+#include "tpufmt.h"
+
+extern int sys_unit_offset;
 
 /*
  *  Repräsentation eines Register/Stack-Wertes
@@ -1272,6 +1275,97 @@ void optimize_unary(CInstruction* insn)
 }
 
 /*
+ *  call far
+ */
+bool optimize_call(CInstruction* insn)
+{
+    if (insn->args[0]->type != CArgument::IMMEDIATE)
+        return false;
+    CRelo* r = insn->args[0]->reloc;
+    if (!r || r->unitnum != sys_unit_offset || r->rtype != CODE_PTR_REF || r->rofs != 0)
+        return false;
+
+    switch (r->rblock) {
+     case SYS_LONG_SHR:
+     case SYS_LONG_SHL:
+        /*
+         *  mov cx,value
+         *  xor bx,bx
+         *  call SYS_LONG_SHR/SYS_LONG_SHR
+         *  => Can be open-coded depending on value
+         *     . value=1, shr:
+         *       shr dx,1
+         *       rcr ax,1
+         *     . value=16, shr:
+         *       mov ax,dx
+         *       xor dx,dx
+         *     . value=1, shl:
+         *       shl ax,1
+         *       rcl dx,1
+         *     . value=16, shl:
+         *       mov dx,ax
+         *       xor ax,ax
+         *  Notice the subtle restrictions which TP has on the second
+         *  operand (low 5 bits only!), and note that this always is an
+         *  unsigned shift.
+         */
+        if (values[rCX].type != TValue::CONSTANT || values[rCX].value->reloc != 0)
+            return false;
+        if (values[rCX].value->immediate == 1) {
+            CInstruction* new_insn;
+            if (r->rblock == SYS_LONG_SHR) {
+                /* shr dx,1; rcr ax,1 */
+                insn->insn = I_SHR;
+                delete insn->args[0];
+                insn->args[0] = new CArgument(rDX);
+                insn->args[1] = new CArgument(1);
+                new_insn = new CInstruction(I_RCR, new CArgument(rAX), new CArgument(1));
+            } else {
+                /* shl ax,1; rcl dx,1 */
+                insn->insn = I_SHL;
+                delete insn->args[0];
+                insn->args[0] = new CArgument(rAX);
+                insn->args[1] = new CArgument(1);
+                new_insn = new CInstruction(I_RCL, new CArgument(rDX), new CArgument(1));
+            }
+            new_insn->next = insn->next;
+            new_insn->prev = insn;
+            new_insn->next->prev = new_insn;
+            new_insn->prev->next = new_insn;
+            changed = true;
+            return true;
+        } else if (values[rCX].value->immediate == 16) {
+            CInstruction* new_insn;
+            if (r->rblock == SYS_LONG_SHR) {
+                /* mov ax,dx; xor dx,dx */
+                insn->insn = I_XCHG;
+                delete insn->args[0];
+                insn->args[0] = new CArgument(rAX);
+                insn->args[1] = new CArgument(rDX);
+                new_insn = new CInstruction(I_XOR, new CArgument(rDX), new CArgument(rDX));
+            } else {
+                /* mov dx,ax; xor ax,ax */
+                insn->insn = I_XCHG;
+                delete insn->args[0];
+                insn->args[0] = new CArgument(rDX);
+                insn->args[1] = new CArgument(rAX);
+                new_insn = new CInstruction(I_XOR, new CArgument(rAX), new CArgument(rAX));
+            }
+            new_insn->next = insn->next;
+            new_insn->prev = insn;
+            new_insn->next->prev = new_insn;
+            new_insn->prev->next = new_insn;
+            changed = true;
+            return true;
+        } else {
+            return false;
+        }
+     default:
+        return false;
+    }
+}
+
+/*
  * Hauptroutine
  */
 void data_flow_analysis(CInstruction* insn)
@@ -1288,8 +1382,13 @@ void data_flow_analysis(CInstruction* insn)
          case I_JMPN:
          case I_JMPF:
          case I_CALLN:
-         case I_CALLF:
 	    set_unknown();
+            break;
+         case I_CALLF:
+            if (!optimize_call(insn))
+                set_unknown();
+            else
+                continue; /* insn has been replaced; retry */
 	    break;
          case I_JCXZ:
 	    use_reg(rCX);
@@ -1379,6 +1478,7 @@ void data_flow_analysis(CInstruction* insn)
             use_reg(rCX);
             use_reg(rAX);
             set_unknown();
+            break;
          default:
 	    set_unknown();
 	}
