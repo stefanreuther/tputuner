@@ -1111,7 +1111,15 @@ CInstruction* optimize_arit(CInstruction* insn)
     }
     
     optimize_argument(insn->opsize, insn->args[1], true);
-    destroy_argument(insn->args[0], true);
+
+    if ((insn->insn == I_AND || insn->insn == I_OR)
+        && insn->args[0]->type == CArgument::REGISTER && insn->args[1]->type == CArgument::REGISTER
+        && insn->args[0]->reg == insn->args[1]->reg)
+    {
+        /* Argument bleibt unverändert */
+    } else {
+        destroy_argument(insn->args[0], true);
+    }
 
     return insn;
 }
