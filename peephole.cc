@@ -1313,6 +1313,43 @@ TAction check_dead_tests(CInstruction* i)
     return A_BAD;
 }
 
+/*
+ *  MOV mit Konstanten nach unten schieben.
+ *     mov reg1,const
+ *     mov reg2,mem
+ *  => mov reg2,mem
+ *     mov reg1,const
+ *  Ermöglicht CSE/Load-Optimierung, falls der Speicheroperand
+ *  vorher in reg1 stand (entsteht z.B. bei "i = 1 shl i")
+ */
+TAction check_mov_const(CInstruction* i)
+{
+    if (i->insn == I_MOV && i->args[1]->type == CArgument::IMMEDIATE && i->args[0]->is_word_reg())
+        /* ok */;
+    else
+        return A_BAD;
+
+    CInstruction* n = i->next;
+    if (n && n->insn == I_MOV && n->args[1]->type != CArgument::IMMEDIATE && n->args[0]->is_word_reg())
+        /* ok */;
+    else
+        return A_BAD;
+    
+    if (n->args[1]->uses_reg(i->args[0]->reg))
+        /* Insn2 nutzt Ergebnis von insn1. FIXME: möglicherweise
+           können wir Ergebnis direkt einsetzen? */
+        return A_BAD;
+
+    if (*i->args[0] == *n->args[0])
+        /* zwei move auf gleiches Register */
+        return A_DELETE;
+
+    /* können getauscht werden. */
+    std::swap(i->args[0], n->args[0]);
+    std::swap(i->args[1], n->args[1]);
+    return A_RESCAN;
+}
+
 TAction last_function(CInstruction* i)
 {
     return A_CONTINUE;
@@ -1343,6 +1380,7 @@ TAction (*functions[])(CInstruction* i) = {
     check_func_return,
     check_int_arit,
     check_dead_tests,
+    check_mov_const,
     last_function
 };
 
