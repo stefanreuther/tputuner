@@ -34,6 +34,7 @@ int changeable_args[] = {
     0, 0,                       // cbw/cwd
     1, 1, 1, 1, 1, 1, 1,        // Shifts
     0, 0,                       // leave/enter
+    0, 0,                       // flag, string
     1                           // setcc
 };
 
@@ -391,12 +392,13 @@ TEstimate* global_find_best(int min_bp, char* mask)
 void global_replace(CInstruction* insn, CArgument* a, TRegister r)
 {
     while(insn) {
-        for(int i = 0; i < changeable_args[insn->insn]; i++)
+        for(int i = 0; i < changeable_args[insn->insn]; i++) {
             if(insn->args[i] && *insn->args[i] == *a) {
                 delete insn->args[i];
                 insn->args[i] = new CArgument(r);
                 changed = true;
-            }            
+            }
+        }
         insn = insn->next;
     }
 }
