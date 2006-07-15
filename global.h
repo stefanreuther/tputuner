@@ -23,6 +23,7 @@ extern bool do_reg_alloc;    // Register-Allokierung
 extern bool do_string_comb;  // Strings kombinieren
 extern bool do_sort_moves;   // movs sortieren
 extern bool do_the_cse;      // `CSE'
+extern bool do_remove_fp;    // remove unused frame pointers
 
 class CCodeBlock;
 class CNewCode;

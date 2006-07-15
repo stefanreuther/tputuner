@@ -18,3 +18,4 @@ bool do_reg_alloc = false;   // Register-Allokierung
 bool do_string_comb = false; // Strings kombinieren
 bool do_sort_moves = true;   // mov sortieren
 bool do_the_cse = false;     // `cse'
+bool do_remove_fp = false;   // remove unused frame pointers

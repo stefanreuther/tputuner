@@ -1,10 +1,10 @@
 /*
- *  Optimierer für tputuner
+ *  Optimizer for tputuner
  *
- *  (c) copyright 1998,1999,2000 by Stefan Reuther
+ *  (c) copyright 1998,1999,2000,2006 by Stefan Reuther
  *
- *  Dieses Modul enthält die `einfachen' Optimierungen und die
- *  Steuerroutine, die alle Optimierungen aufruft.
+ *  This module contains the simple optimisations, and the control
+ *  routine which calls all passes.
  */
 #include <fstream>
 #include <string>
@@ -22,10 +22,13 @@ bool changed;
 char* global_code_ptr;
 int global_code_id;
 
+/* This enables an older version of stack-frame removal, which
+   predates the current version. The current one is somewhat cleaner,
+   but more conservative. */
 #define REMOVE_FRAME 0
 
 /*
- *  Unbenutzten Code entfernen
+ *  Remove unused code
  */
 CInstruction* remove_unused_code(CInstruction* insn)
 {
@@ -142,28 +145,28 @@ CInstruction* remove_unused_code(CInstruction* insn)
 }
 
 /*
- *  Optimierung redundanter Sprünge
+ *  Optimizer redundant jumps
  */
 void reduce_redundant_jumps(CInstruction* insn)
 {
     while(insn) {
 	if((insn->insn == I_JMPN || insn->insn == I_JCC || insn->insn == I_JCXZ)
 	   && insn->args[0]->type==CArgument::LABEL) {
-	    /* es ist ein Sprung an ein Label */
+	    /* it's a jump onto a label */
 	    while(1) {
 		CInstruction* target = insn->args[0]->label;
-		/* Ziel ist kein Sprung */
+		/* target is not a jump */
 		if(target->next->insn != I_JMPN) break;
 
-		/* Sprungkette führt nicht zu Label */
+		/* jump chain doesn't end at a label */
 		if(target->next->args[0]->type != CArgument::LABEL)
 		    break;
 		int difference = target->next->args[0]->label->ip - insn->ip;
 		
-		/* Sprung außerhalb Reichweite */
+		/* jump outside range */
 		if(difference<-127 || difference>126) break;
 		
-		/* wir können optimieren */
+		/* we can optimize */
 		delete insn->args[0];
 		insn->args[0] = new CArgument(*target->next->args[0]);
 		changed=true;
@@ -174,7 +177,8 @@ void reduce_redundant_jumps(CInstruction* insn)
 }
 
 /*
- *  Berechnet Offsets der Befehle neu
+ *  Recompute offsets of all instructions
+ *  Returns the CCWCounter object used to obtain these offsets
  */
 CCWCounter* recalc_offsets(CInstruction* insn)
 {
@@ -189,10 +193,10 @@ CCWCounter* recalc_offsets(CInstruction* insn)
 	catch(string& s) {
 	    if(insn->ip != base_offset + w->bytes) {
 		/* ignore */
-		/* diese Situation tritt auf, wenn ein vorwärtsgerichteter
-		 * short-jump kurzzeitig zu lang wird, da er auf einem
-		 * kleineren Offset steht, das Ziel aber noch nicht neu-
-		 * berechnet wurde */
+		/* it can happen that a forward short jump gets out of
+                 * range shortly because it moved to a lower address,
+                 * but its target still sits on a high address, and
+                 * has not yet been recomputed. */
 	    } else
 		throw string("Logic error: ") + s;
 	}
@@ -203,7 +207,7 @@ CCWCounter* recalc_offsets(CInstruction* insn)
 }
 
 /*
- *  Kontrolldump
+ *  Debug dump
  */
 void write_file(int id, int pass, CInstruction* insn)
 {
@@ -224,7 +228,7 @@ void write_file(int id, int pass, CInstruction* insn)
 }
 
 /*
- *  Reassembliert die Funktion
+ *  Reassembles a whole function
  */
 void reassemble(CNewCode* nc, int my_offset, CInstruction* _insn, CCWCounter* wc)
 {
@@ -233,7 +237,7 @@ void reassemble(CNewCode* nc, int my_offset, CInstruction* _insn, CCWCounter* wc
     while(1) {
      cont:
 	cout << "r" << ++reassembly_counter << " " << flush;
-	/* CodeWriter initialisieren */
+	/* initialize CodeWriter */
 	nc->code_size = wc->bytes;
 	nc->code = new char[nc->code_size];
 	nc->relo_size = 8*wc->relos;
@@ -242,7 +246,7 @@ void reassemble(CNewCode* nc, int my_offset, CInstruction* _insn, CCWCounter* wc
 				     nc->relos, nc->relo_size,
 				     my_offset);
 
-	/* assemblieren */
+	/* assemble */
 	insn = _insn;
 	while(insn) {
 	    if(insn->ip != w->ip) {
@@ -271,7 +275,7 @@ void reassemble(CNewCode* nc, int my_offset, CInstruction* _insn, CCWCounter* wc
 }
 
 /*
- *  Sprünge verzögern, um gemeinsamen Code zu nutzen
+ *  Delay jumps to share code
  */
 void late_jumps(CInstruction* insn)
 {
@@ -286,7 +290,7 @@ void late_jumps(CInstruction* insn)
                 here = here->next;
                 there = there->next;
                 if(!(*here == *there)) break;
-                /* continue, wenn der Befehl die Flags nicht ändert */
+                /* we continue only if the instruction does not modify flags */
                 switch(here->insn) {
                  case I_MOV:
                  case I_LES:
@@ -304,19 +308,19 @@ void late_jumps(CInstruction* insn)
                  case I_DEC:
                     if(insn->param==2 || insn->param==3) continue;
                     break;
-                 /* ret/jmp *nicht* überspringen */
+                 /* never skip ret/jmp */
                  default:
                     break;
                 }
                 break;
             }
-            /* here, there -> erster nicht-übereinstimmender Befehl
-             * insn -> Sprung */
+            /* here, there -> first non-matching insn
+             * insn -> jump */
             if(here && there && here!=insn->next && here!=insn) {
-                /* ok, was gespart */
+                /* we saved something */
                 CInstruction* label = there;
                 if(there->insn != I_LABEL) {
-                    /* label vor there einbauen */
+                    /* add new label */
                     label = new CInstruction(I_LABEL);
                     label->ip = there->ip;
                     label->next = there;
@@ -324,7 +328,7 @@ void late_jumps(CInstruction* insn)
                     label->prev->next = label;
                     there->prev = label;
                 }
-                /* Neuen Sprung einbauen */
+                /* add new jump */
                 label->inc_ref();
                 CInstruction* jump = new CInstruction(I_JCC, new CArgument(label));
                 jump->param = insn->param;
@@ -333,7 +337,7 @@ void late_jumps(CInstruction* insn)
                 jump->prev = here->prev;
                 jump->prev->next = jump;
                 here->prev = jump;
-                /* und alten Sprung weg */
+                /* delete old jump */
                 insn->prev->next = insn->next;
                 insn->next->prev = insn->prev;
                 delete insn;
@@ -345,7 +349,7 @@ void late_jumps(CInstruction* insn)
 }
 
 /*
- *  Sprünge vorziehen, um gemeinsamen Code zu nutzen
+ *  Jump earlier to use common code
  *
  *       call foo
  *       jmp  skip           jmp  skip
@@ -362,14 +366,14 @@ void early_jumps(CInstruction* insn)
         
         if(insn->insn==I_JMPN && insn->args[0]->type==CArgument::LABEL
            && insn->args[0]->label != insn->next) {
-            /* ein Sprung, aber kein `jmp $+2' */
+            /* it's a jump, but not a `jmp $+2' */
             CInstruction* here = insn->prev;
             CInstruction* there = insn->args[0]->label;
 
             while(here && there) {
                 if(here->insn==I_LABEL) break;
                 
-                /* suche `echten' Befehl am Sprungziel */
+                /* find real instruction at jump target */
                 while(there && there->insn==I_LABEL)
                     there = there->prev;
                 if(!(*there == *here)) break;
@@ -378,10 +382,10 @@ void early_jumps(CInstruction* insn)
                 here = here->prev;
             }
 
-            /* wenn die insn sich nur im Quelloperanden unterscheiden:
+            /* if the instructions only differ in their source operand:
              *   here --->   mov   [foo],3
              *   there --->  mov   [foo],ax
-             * ändern in
+             * we can modify it to
              *   here --->   mov   ax,3
              *               JMP
              *   there -->   LABEL
@@ -397,7 +401,7 @@ void early_jumps(CInstruction* insn)
                && (there->insn != I_IMUL || there->args[3]==0)
                && here->args[1]->type == CArgument::IMMEDIATE
                && (there->args[1]->is_word_reg() || there->args[1]->is_byte_reg())) {
-                /* Übereinstimmung */
+                /* match */
                 delete here->args[0];
                 here->args[0] = new CArgument(*there->args[1]);
                 here->insn = I_MOV;
@@ -405,10 +409,10 @@ void early_jumps(CInstruction* insn)
                 renamed = changed = true;
             }
                 
-            /* wir konnten was löschen */
+            /* we could delete anything */
             if(here && there && (renamed || (here != insn->prev))) {
-                /* here ist der letzte zu erhaltende Befehl */
-                /* wir springen hinter there */
+                /* here is the last insn to keep */
+                /* we jump behind there */
 
                 /* here --->   insn
                                JMP */
@@ -420,7 +424,7 @@ void early_jumps(CInstruction* insn)
                     if(there->insn == I_LABEL)
                         label = there;
                     else {
-                        /* label erzeugen */
+                        /* make new label */
                         label = new CInstruction(I_LABEL);
                         label->ip = there->next->ip;
                         label->next = there->next;
@@ -446,14 +450,156 @@ void early_jumps(CInstruction* insn)
     }
 }
 
+/* Check whether this instruction is safe to be contained in the
+   routine's body for frame pointer removal. Must return false for all
+   instructions that can be part of a frame. */
+static bool
+insn_safe_for_fp_removal(CInstruction* p)
+{
+    if (p->insn != I_MOV)
+        return false;
+    if (p->args[0]->type != CArgument::REGISTER)
+        return false;
+    if (p->args[0]->is_reg(rSP) || p->args[0]->is_reg(rBP))
+        return false;
+    if (p->args[1]->type == CArgument::MEMORY) {
+        return (p->args[1]->memory[0] == rNONE && p->args[1]->memory[1] == rNONE);
+    } else if (p->args[1]->type == CArgument::IMMEDIATE) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+/* Check whether a routine is safe for frame pointer removal. */
+static bool
+routine_safe_for_fp_removal(CInstruction* p)
+{
+    /* To be candidate for frame pointer removal, the routine must
+       have the following format:
+           push bp         enter
+           mov bp, sp
+           [sub sp, NN]
+
+           mov sp, bp      leave
+           pop bp
+           ret ANY
+       Which may be interspersed with a very limited instruction
+       set only: for safety, we accept only mov REG,CONST-OR-GLOBAL.
+
+       We could accept more. For example,
+           <frame>
+           mov al,[...]
+           xor al,1
+           </frame>
+       would usually be perfectly safe. */
+    enum State { WantPushBP, WantMovBPSP, WantSubSPOrLeave,
+                 WantLeave, WantPopBP, WantRet, WantFini };
+    State st = WantPushBP;
+
+    while (p != 0) {
+        if (insn_safe_for_fp_removal(p)) {
+            ;
+        } else {
+            switch (st) {
+             case WantPushBP:
+                if (p->insn == I_PUSH && p->args[0]->is_reg(rBP))
+                    st = WantMovBPSP;
+                else if (p->insn == I_ENTER)
+                    st = WantSubSPOrLeave;
+                else
+                    return false;
+                break;
+             case WantMovBPSP:
+                if (p->insn == I_MOV && p->args[0]->is_reg(rBP) && p->args[1]->is_reg(rSP))
+                    st = WantSubSPOrLeave;
+                else
+                    return false;
+                break;
+             case WantSubSPOrLeave:
+                if (p->insn == I_SUB && p->args[0]->is_reg(rSP) && p->args[1]->is_immed()) {
+                    st = WantLeave;
+                    break;
+                }
+                /* FALLTHROUGH */
+             case WantLeave:
+                if (p->insn == I_MOV && p->args[0]->is_reg(rSP) && p->args[1]->is_reg(rBP)) {
+                    st = WantPopBP;
+                } else if (p->insn == I_LEAVE) {
+                    st = WantRet;
+                } else {
+                    return false;
+                }
+                break;
+             case WantPopBP:
+                if (p->insn == I_POP && p->args[0]->is_reg(rBP))
+                    st = WantRet;
+                else
+                    return false;
+                break;
+             case WantRet:
+                if (p->insn == I_RETF || p->insn == I_RETN)
+                    st = WantFini;
+                else
+                    return false;
+                break;
+             case WantFini:
+                return false;
+            }
+        }
+        p = p->next;
+    }
+    return st == WantFini;
+}
+
 /*
- *  Hauptprozedur der Optimierers
- *  id = Codeblock-Nummer
- *  code = zeigt auf Codestück
- *  code_size = Größe desselben
- *  my_offset = IP am Eintritt in den Code
- *  relo = Zeiger auf Relokationstabelle
- *  relo_count = Einträge (a 8 Byte) in der Tabelle
+ *  Frame Pointer Removal Pass
+ */
+CInstruction*
+try_remove_frame_pointer(CInstruction* p)
+{
+    if (!routine_safe_for_fp_removal(p))
+        return p;
+
+    cout << "FP! " << flush;
+
+    /* Build new insn list */
+    CInstruction* newlist = 0;
+    CInstruction** last = &newlist;
+    int first_ip = p->ip;
+
+    while (p != 0) {
+        CInstruction* next = p->next;
+        if (insn_safe_for_fp_removal(p) || p->insn == I_RETN || p->insn == I_RETF) {
+            /* keep this insn */
+            p->next = 0;
+            p->prev = *last;
+            *last = p;
+            last = &p->next;
+        } else {
+            /* delete it */
+            delete p;
+        }
+        p = next;
+    }
+
+    if (newlist == 0)
+        throw string("Remove frame pointer: routine is now empty?");
+    newlist->ip = first_ip;
+    return newlist;
+}
+
+/*
+ *  Main entry of optimizer
+ *
+ *  id = code block number
+ *  code = points to code in memory
+ *  code_size = size of code
+ *  my_offset = IP on entry to code
+ *  relo = pointer to relocations
+ *  relo_count = number of table entries, 8 bytes each
+ *
+ *  Returns CNewCode object if successful, 0 on failure
  */
 CNewCode* do_optimize(int id,
 		      char* code, int code_size, int my_offset,
@@ -501,6 +647,17 @@ CNewCode* do_optimize(int id,
                 exit_counter = 1;
         }
     } while(exit_counter > 0);
+
+    // now try to remove the frame pointer
+    if (do_remove_fp) {
+        delete w;
+        insn = try_remove_frame_pointer(insn);
+        w = recalc_offsets(insn);
+        if (do_dumps) {
+            write_file(id, pass, insn);
+        }
+    }
+
     if(code_size < w->bytes) {
 	cout << "Warning: new code got bigger - code block unchanged" << endl;
 	return 0;

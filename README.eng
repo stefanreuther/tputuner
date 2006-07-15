@@ -36,6 +36,7 @@ Invocation
   -m, --sort-moves
   -c, --combine-strings
   -g, --cse
+  -f, --remove-frame-pointer
        Choose the optimisations to perform. By default, all but -r, -c
        and -g are on. To disable one option, use capital letters
        (`-A') or add a "--no" to the long option (`--no-early-jump').
@@ -271,6 +272,23 @@ Optimisations
                 jmp     done
         skip:   call    Barney
         done:
+
+
+* Remove stack frames (--remove-frame-pointer)
+
+  Removes the stackframe of sufficiently empty routines. A routine
+  is empty enough if it does at most load some registers with constant
+  values or global variables. Anything else in a subroutine will
+  suppress this optimisation, including computations or calls. The
+  main purpose of this optimisation is to "optimize away" empty
+  functions, which are very common with object-oriented programming.
+       PROCEDURE MyBaseClass.MyVirtualFunction;
+       BEGIN
+       END;
+
+  Unlike the other passes, this optimisation is done only once, just
+  before reassembling starts. If it removed the stack frame
+  successfully, this will be shown with a "FP!" in the log.
 
 
 * Size reduction (--size)
@@ -520,7 +538,7 @@ Compiling TPUTUNER
 Author, Legalese
 -----------------
 
-  Stefan Reuther, <Streu@gmx.de>, German computer science student.
+  Stefan Reuther, <Streu@gmx.de>, software developer.
 
   Copying explicitly permitted. When you use this program for more
   than a short test, please send me your impressions and experiences.

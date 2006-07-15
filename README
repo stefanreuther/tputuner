@@ -35,6 +35,7 @@ Aufruf
   -m, --sort-moves
   -c, --combine-strings
   -g, --cse
+  -f, --remove-frame-pointer
        Legen die Art der Optimierung fest. Standardmäßig sind alle
        Optionen bis auf -r, -c und -g eingeschaltet. Um eine Option
        auszuschalten, verwenden Sie Großbuchstaben (also `-A')
@@ -282,6 +283,24 @@ Optimierungen
                 jmp     done
         skip:   call    Barney
         done:
+
+
+* Stackrahmen entfernen (--remove-frame-pointer)
+
+  Entfernt von hinreichend leeren Routinen den Stackrahmen. Als
+  hinreichend leer werden Routinen betrachtet, die maximal globale
+  Variablen oder Konstanten in Register laden. Weitergehende
+  Berechnungen oder gar Aufrufe unterbinden diese Optimierung. Diese
+  Optimierung ist vor allem dazu da, die bei objektorientierter
+  Programmierung häufigen leeren Funktionen
+       PROCEDURE MyBaseClass.MyVirtualFunction;
+       BEGIN
+       END;
+  "wegzuoptimieren".
+
+  Im Gegensatz zu den anderen Optimierungen wird diese Optimierung nur
+  einmal ausgeführt, bevor die Reassemblierung beginnt. Im Protokoll
+  steht "FP!", wenn ein Stackrahmen entfernt wurde.
 
 
 * Optimierung auf Größe (--size)
@@ -548,7 +567,7 @@ Compilieren
 Autor, Legalesisch
 -------------------
 
-  Stefan Reuther, <Streu@gmx.de>
+  Stefan Reuther, <Streu@gmx.de>, Softwareentwickler
 
   Kopieren dieses Programmes ist ausdrücklich erlaubt. Wenn Sie dieses
   Programm für mehr als bloß mal einen kurzen Test einsetzen, senden Sie
@@ -560,7 +579,7 @@ Autor, Legalesisch
   DEN SCHADEN SELBST AUFKOMMEN. WENN SIE DIESES RISIKO NICHT AUF SICH
   NEHMEN WOLLEN, DÜRFEN SIE tputuner NICHT EINSETZEN.
 
-  Ich verwende tputuner im täglichen Einsatz mit PCC (70000+ Zeilen),
+  Ich verwende tputuner im täglichen Einsatz mit PCC (80000+ Zeilen),
   "kritische" Fehler fallen mir also meistens auf. Vielleicht verwenden
   Sie aber ander Code-Muster als ich, so das tputuner auf die Nase fällt.
   Oder der Fehler ist so subtil, daß er kaum auffällt. Ich hatte einmal

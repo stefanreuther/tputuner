@@ -1,7 +1,18 @@
 #!/bin/sh
 
-for i in /dos/p/vplanets/cc/*.tpu; do
-  echo $i 1>&2
-  echo $i
-  ./tputuner -r $i
+#for i in /dos/p/vplanets/cc/*.tpu; do
+#  echo $i 1>&2
+#  echo $i
+#  ./tputuner -r $i
+#done
+
+exec 5>logfile
+for i in /dos/g/planets/cc/*.tpu; do
+  markname=/dos/g/planets/cc/mark/${i#/dos/g/planets/cc/}
+  test $i -nt $markname && {
+    echo optimizing $i...
+    ./tputuner -r3g $i $markname >&5 &&
+    touch $markname
+  }
 done
+exec 5>&-

@@ -485,6 +485,7 @@ TOption options[] = {
     { 'r', "reg-alloc", &do_reg_alloc,             "basic register re-allocation" },
     { 'c', "combine-strings", &do_string_comb,     "combine common strings" },
     { 'm', "sort-moves", &do_sort_moves,           "sort `mov' insns" },
+    { 'f', "remove-frame-pointer", &do_remove_fp,  "remove frame pointer" },
     { 'g', "cse", &do_the_cse,                     "common subexpression elimination" },
     { '3', "386", &do_386,                         "allow handling of some 386 insns" },
     { 0, 0, 0, 0 }
