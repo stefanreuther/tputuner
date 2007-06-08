@@ -136,7 +136,7 @@ Optimisations
   Most optimisations are about removing code. This doubtlessly makes
   programs smaller: just count bytes. It generally also makes them
   faster, but that property can't be measured as objectively (counting
-  cycles from spec books? not on a Pentium!) But when theres less to
+  cycles from spec books? not on a Pentium!) But when there's less to
   do for your CPU, and when more of your program fits in the cache, it
   ought to be faster :-)
 
