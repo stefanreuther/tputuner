@@ -833,9 +833,42 @@ TAction check_cwd_longmul(CInstruction* p)
         movcx->opsize = 2;
         return A_DELETE;
     }
-    
-    if(!movcx || movcx->insn!=I_MOV || !movcx->args[0]->is_reg(rCX)
-       || movcx->args[1]->type != CArgument::IMMEDIATE
+
+    if(!movcx || movcx->insn!=I_MOV || !movcx->args[0]->is_reg(rCX))
+        return A_BAD;
+
+    if (movcx->args[1]->is_reg(rAX)) {
+        /* cwd
+           mov cx,ax
+           mov bx,dx
+           call <longmul>
+             => imul ax
+           This is the Borland Pascal 7.0 version of Sqr() */
+        CInstruction* movbx = movcx->next;
+        if(!movbx || movbx->insn!=I_MOV || !movbx->args[0]->is_reg(rBX) || !movbx->args[1]->is_reg(rDX))
+            return A_BAD;
+
+        CInstruction* call = movbx->next;
+        if(!call || call->insn != I_CALLF || call->args[0]->type != CArgument::IMMEDIATE)
+            return A_BAD;
+        CRelo* r = call->args[0]->reloc;
+        if(!r || r->unitnum!=sys_unit_offset || r->rtype != CODE_PTR_REF || r->rblock != SYS_LONG_MUL
+           || r->rofs != 0)
+            return A_BAD;
+
+        p->insn = I_IMUL;
+        p->args[0] = new CArgument(rAX);
+        p->opsize = 2;
+        p->next = call->next;
+        if (p->next)
+            p->next->prev = p;
+        delete call;
+        delete movbx;
+        delete movcx;
+        return A_RESCAN;
+    }
+
+    if(movcx->args[1]->type != CArgument::IMMEDIATE
        || movcx->args[1]->reloc || (movcx->args[1]->immediate & 0x8000))
         return A_BAD;
 
