@@ -19,10 +19,10 @@ extern int sys_unit_offset;
  *  Repräsentation eines Register/Stack-Wertes
  */
 struct TValue {
-    typedef enum { UNKNOWN, CONSTANT, MEMORY, SEGMENT } TType;
+    typedef enum { UNKNOWN, CONSTANT, MEMORY, SEGMENT } TValueType;
     TValue* next;       /* für Stack */
 
-    TType type;
+    TValueType type;
     CArgument* value;   /* CONSTANT -> das Argument, das in das Register */
                     	/* geladen wurde */
                         /* MEMORY -> der Operand, ... */
