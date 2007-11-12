@@ -1324,6 +1324,7 @@ bool optimize_call(CInstruction* insn)
             if (r->rblock == SYS_LONG_SHR) {
                 /* shr dx,1; rcr ax,1 */
                 insn->insn = I_SHR;
+                insn->opsize = 2;
                 delete insn->args[0];
                 insn->args[0] = new CArgument(rDX);
                 insn->args[1] = new CArgument(1);
@@ -1331,6 +1332,7 @@ bool optimize_call(CInstruction* insn)
             } else {
                 /* shl ax,1; rcl dx,1 */
                 insn->insn = I_SHL;
+                insn->opsize = 2;
                 delete insn->args[0];
                 insn->args[0] = new CArgument(rAX);
                 insn->args[1] = new CArgument(1);
