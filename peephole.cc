@@ -1383,6 +1383,38 @@ TAction check_mov_const(CInstruction* i)
     return A_RESCAN;
 }
 
+/*
+ *  Load operation followed by shift, appears for array access
+ *     mov reg,[mem]
+ *     shl reg,const
+ *  => imul reg,[mem],2**const
+ */
+TAction check_load_shift(CInstruction* i)
+{
+    if (i->insn == I_MOV
+        && i->args[0]->type == CArgument::REGISTER
+        && i->args[1]->type == CArgument::MEMORY
+        && i->next != 0
+        && i->next->insn == I_SHL
+        && *i->next->args[0] == *i->args[0]
+        && i->next->args[1]->is_immed()
+        && i->next->args[1]->immediate >= 1
+        && i->next->args[1]->immediate <= 7)
+    {
+        /* ok */
+        CInstruction* n = i->next;
+        i->insn = I_IMUL;
+        i->args[2] = new CArgument(1 << n->args[1]->immediate);
+        i->next = n->next;
+        i->next->prev = i;
+        delete n;
+        return A_RESCAN;
+    } else {
+        /* fail */
+        return A_BAD;
+    }
+}
+
 TAction last_function(CInstruction* i)
 {
     return A_CONTINUE;
@@ -1414,6 +1446,7 @@ TAction (*functions[])(CInstruction* i) = {
     check_int_arit,
     check_dead_tests,
     check_mov_const,
+    check_load_shift,
     last_function
 };
 
