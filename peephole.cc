@@ -1388,10 +1388,15 @@ TAction check_mov_const(CInstruction* i)
  *     mov reg,[mem]
  *     shl reg,const
  *  => imul reg,[mem],2**const
+ *
+ *  Unfortunately, I can't find out whether that's actually faster on modern
+ *  chips, so I assume it's slower (which it is according to cycle counts
+ *  published in the 386's manual).
  */
 TAction check_load_shift(CInstruction* i)
 {
-    if (i->insn == I_MOV
+    if (do_size
+        && i->insn == I_MOV
         && i->args[0]->type == CArgument::REGISTER
         && i->args[1]->type == CArgument::MEMORY
         && i->next != 0
