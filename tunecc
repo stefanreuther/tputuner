@@ -11,7 +11,7 @@ for i in /dos/g/planets/cc/*.tpu; do
   markname=/dos/g/planets/cc/mark/${i#/dos/g/planets/cc/}
   test $i -nt $markname && {
     echo optimizing $i...
-    ./tputuner -r3g $i $markname >&5 &&
+    ./tputuner -r3fg $i >&5 &&
     touch $markname
   }
 done
