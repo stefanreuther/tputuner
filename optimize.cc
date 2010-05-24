@@ -456,16 +456,20 @@ void early_jumps(CInstruction* insn)
 static bool
 insn_safe_for_fp_removal(CInstruction* p)
 {
-    if (p->insn != I_MOV)
-        return false;
-    if (p->args[0]->type != CArgument::REGISTER)
-        return false;
-    if (p->args[0]->is_reg(rSP) || p->args[0]->is_reg(rBP))
-        return false;
-    if (p->args[1]->type == CArgument::MEMORY) {
-        return (p->args[1]->memory[0] == rNONE && p->args[1]->memory[1] == rNONE);
-    } else if (p->args[1]->type == CArgument::IMMEDIATE) {
-        return true;
+    if (p->insn == I_MOV) {
+        if (p->args[0]->type != CArgument::REGISTER)
+            return false;
+        if (p->args[0]->is_reg(rSP) || p->args[0]->is_reg(rBP))
+            return false;
+        if (p->args[1]->type == CArgument::MEMORY) {
+            return (p->args[1]->memory[0] == rNONE && p->args[1]->memory[1] == rNONE);
+        } else if (p->args[1]->type == CArgument::IMMEDIATE) {
+            return true;
+        } else {
+            return false;
+        }
+    } else if (p->insn == I_XOR) {
+        return *p->args[0] == *p->args[1];
     } else {
         return false;
     }
