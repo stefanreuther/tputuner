@@ -1,0 +1,21 @@
+
+TPU Tuner mod
+
+This is a non-official modification, by Joe Forster/STA, of the original TPU Tuner, by Stefan Reuther.
+Original homepage: http://www.phost.de/~stefan/turbo.html
+
+History
+
+2013-10-01 (Joe Forster/STA)
+- Bugfixes:
+  - Removed changing "mov segreg1, X", when the first instruction of a function, to "push segreg2; pop segreg1" (crash: null-pointer dereference).
+  - Added check to skip changing the instruction "or reg, reg" to itself (infinite loop of optimization passes).
+- Fixed gcc errors:
+  - Added inclusion of "cstdlib" (error: non-existing symbols).
+  - Added some "using std::symbol" clauses (error: non-existing symbols).
+  - Changed some "op1 != op2" expressions, with class-typed operands, to "!(op1 == op2)" (error: non-existing "!=" operator).
+- Fixed gcc warnings:
+  - Fixed skipping "op reg1, reg2, 0", when changing "mov [mem], const [...] mov [mem], reg" to "mov reg, const; jmp label; [...] label: mov [mem],reg", probably resulting in a program crash as it accessed the 4th operand when there are only 3 (warning: array access beyond bounds).
+  - Added parentheses around a non-trivial block of && and || operators. (warning: suggested parentheses)
+- Added DJGPP- and MinGW-specific makefiles.
+- Added 32-bit Windows binary (requires libgcc_s_dw2-1.dll, libstdc++-6.dll and msvcrt.dll).

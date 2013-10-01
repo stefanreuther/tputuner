@@ -1,5 +1,0 @@
-#! /bin/bash
-# Vergleicht Debug-Dumps
-# Aufruf: `ldiff blockX.*'     -- vergleicht ersten und letzten
-#         `ldiff blockX.{a,b}' -- vergleicht Pass a und b
-diff -u <(sed 's/[ 0-9a-f]*://' $1) -L "$1" <(sed 's/[ 0-9a-f]*://' ${!#}) -L "${!#}"
