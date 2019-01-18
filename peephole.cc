@@ -1420,7 +1420,7 @@ TAction check_load_shift(CInstruction* i)
     }
 }
 
-TAction last_function(CInstruction* i)
+TAction last_function(CInstruction* /*i*/)
 {
     return A_CONTINUE;
 }

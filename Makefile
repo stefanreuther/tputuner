@@ -20,7 +20,7 @@ $(EXENAME): $(OBJECTS)
 	$(GCC) $(CFLAGS) -o $(EXENAME) $(OBJECTS) $(LIBS)
 
 .cc.o:
-	$(GCC) $(CFLAGS) -o $*.o -c $*.cc
+	$(GCC) $(CFLAGS) -o $@ -c $<
 
 clean:
 	$(RM) $(OBJECTS)

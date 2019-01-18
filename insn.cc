@@ -32,7 +32,7 @@ char reg_values[] = { 0,
 		      0, 1, 2, 3,
                       0 };
 
-char* insn_names[] = {
+const char*const insn_names[] = {
     "INVALID",
     "label",
     "mov", "les", "lds", "xchg", "lea",
@@ -75,7 +75,7 @@ char insn_argc[] = {
     1                           // setcc
 };
 
-char* reg_names[] = {
+const char*const reg_names[] = {
     "NONE",
     "ax", "cx", "dx", "bx", "sp", "bp", "si", "di",
     "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh",

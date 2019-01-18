@@ -427,7 +427,7 @@ void destroy_argument(CArgument* a, bool use_it)
  *  Optimiert einen (Quell)Operanden
  *  allow_const = true -> erlaube auch konstante Werte
  */
-void optimize_argument(int os, CArgument*& a, bool allow_const)
+void optimize_argument(int os, CArgument*& a, bool /*allow_const*/)
 {
     if(os==2 && (is_safe_mem(a) || a->type==CArgument::IMMEDIATE)) {
 	for(int i=rAX; i<=rDI; i++) {

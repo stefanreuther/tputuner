@@ -12,10 +12,13 @@
 #include <list>
 #include <string>
 #include <cstring>       /* für Parameterparsing... */
+#include <cstdlib>
 #include "tpufmt.h"
 #include "optimize.h"
 #include "global.h"
 #include "strcomb.h"
+
+using std::exit;
 
 char* unit;        // Original-Unit
 int unit_size;     // Originalgröße
@@ -467,9 +470,9 @@ void write_new_file(char* name)
 /* Strukturen für Options-Parser */
 struct TOption {
     char letter;
-    char* long_name;
+    const char* long_name;
     bool* variable;
-    char* desc;
+    const char* desc;
 };
 
 TOption options[] = {

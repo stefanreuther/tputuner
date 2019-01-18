@@ -24,7 +24,7 @@ extern char reg_values[];
 extern const TRegister base_regs[8];
 extern const TRegister index_regs[8];
 extern const TRegister def_seg[8];
-extern char* reg_names[];
+extern const char*const reg_names[];
 
 /*** Relozierung ***/
 struct CRelo {
@@ -149,7 +149,7 @@ enum {
         IF_NONEQUAL
 };
 
-extern char* insn_names[];
+extern const char*const insn_names[];
 
 /*** Befehl ***/
 class CInstruction {

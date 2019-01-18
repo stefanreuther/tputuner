@@ -364,7 +364,7 @@ bool check_dependencies(OperandSet& a, OperandSet& b)
    geben; die entsprechende Sequenz `mov es, bar[2]; mov foo, bar'
    am Anfang wuerde exakt gleich optimiert. (der Parameter les hat
    dz. keinen Einfluss) */
-bool try_cse(CInstruction* a1, CInstruction* a2, bool les)
+bool try_cse(CInstruction* a1, CInstruction* a2, bool /*les*/)
 {
     CInstruction* b = a1->next;
     CInstruction* a2end = a2->next;

@@ -26,7 +26,7 @@ class CCWCounter : public CCodeWriter {
     int relos;
     CCWCounter();
     ~CCWCounter() {}
-    void wb(char c) { bytes++; }
+    void wb(char /*c*/) { bytes++; }
     void put_reloc(CRelo*) { relos++; }
 };
 
