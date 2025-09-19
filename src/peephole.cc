@@ -68,12 +68,12 @@ TAction check_nop(CInstruction* p)
     if((p->insn==I_MOV || p->insn==I_XCHG)
        && *p->args[0]==*p->args[1])
         return A_DELETE;   /* Selbstzuweisung */
-    if((p->insn==I_JCC || p->insn==I_JCXZ || p->insn==I_JMPN)
+    if((p->insn==I_JCC || p->insn==I_JCXZ || p->insn==I_LOOP || p->insn==I_JMPN)
        && p->args[0]->type==CArgument::LABEL
        && p->args[0]->label==p->next)
-        /* jmp $+2 in allen Geschmacksrichtungen */
+        /* JMP $+2 in allen Geschmacksrichtungen */
         return A_DELETE;
-    
+
     return A_BAD;
 }
 
@@ -82,11 +82,11 @@ TAction check_nop(CInstruction* p)
  */
 TAction check_jump(CInstruction* p)
 {
-    /* jcc <label:> */
+    /* Jcc <label:> */
     if(p->insn != I_JCC || p->args[0]->type != CArgument::LABEL)
         return A_BAD;
 
-    /* jmp <woanders> */
+    /* JMP <woanders> */
     if(!p->next || !p->next->args[0] || p->next->args[0]->type != CArgument::LABEL)
         return A_BAD;
 
@@ -104,13 +104,13 @@ TAction check_jump(CInstruction* p)
     } else if(p->next->insn == I_JCC) {
         CInstruction* n = p->next;
 
-        /* Zwei Sprnge. Wenn der zweite immer dann springt, wenn
-           der erste das auch tut -> l”sche zweiten */
+        /* Zwei Sprünge. Wenn der zweite immer dann springt, wenn
+           der erste das auch tut -> lösche zweiten */
         int fst = jmp_char[p->param];
         int snd = jmp_char[n->param];
-        if (fst == IF_NONEQUAL) 
+        if (fst == IF_NONEQUAL)
             fst = IF_ABOVE | IF_BELOW | IF_LESS | IF_GREATER;
-        if (snd == IF_NONEQUAL) 
+        if (snd == IF_NONEQUAL)
             snd = IF_ABOVE | IF_BELOW | IF_LESS | IF_GREATER;
         if (((fst | snd) & IF_OTHER) == 0 && ALL_SET(fst, snd)) {
             /* trifft zu */
@@ -120,7 +120,7 @@ TAction check_jump(CInstruction* p)
         }
 
         if (*p->args[0] == *n->args[0]) {
-            /* Zwei Sprnge zum selben Ziel */
+            /* Zwei Sprünge zum selben Ziel */
             /* probiere, einen Sprung zu synthetisieren, der
                beides auf einmal kann */
             int when = jmp_char[p->param] | jmp_char[n->param];
@@ -129,22 +129,22 @@ TAction check_jump(CInstruction* p)
             if (ALL_SET(when, IF_ABOVE | IF_BELOW | IF_EQUAL)
                 || ALL_SET(when, IF_LESS | IF_GREATER | IF_EQUAL)
                 || ALL_SET(when, IF_EQUAL | IF_NONEQUAL)) {
-                /* jcond     <foo>
-                   jnotcond  <foo>    => jmp <foo> */
+                /* Jcond     <foo>
+                   Jnotcond  <foo>    => JMP <foo> */
                 n->insn = I_JMPN;
                 n->param = 0;
                 return A_DELETE;
             }
             if (when & IF_NONEQUAL) {
-                /* ja <foo>
-                   jne <foo>    => ja <foo> */
+                /* JA <foo>
+                   JNE <foo>    => JA <foo> */
                 n->param = jmp_for_char(when & ~IF_NONEQUAL);
                 return A_DELETE;
             }
             if (ALL_SET(when, IF_LESS | IF_GREATER)
                 || ALL_SET(when, IF_ABOVE | IF_BELOW)) {
-                /* ja <foo>
-                   jb <foo>   => jne <foo> */
+                /* JA <foo>
+                   JB <foo>   => JNE <foo> */
                 n->param = CC_NE;
                 return A_DELETE;
             }
@@ -167,13 +167,13 @@ TAction check_cmp(CInstruction* p)
        && reg_sizes[p->args[0]->reg]==2
        && p->args[1]->is_immed(0) && p->opsize == 2) {
         /*
-         *  cmp(2) reg,0
-         *  -> or reg,reg
+         *  CMP(2) reg,0
+         *  -> OR reg,reg
          */
         delete p->args[1];
         p->args[1] = new CArgument(*(p->args[0]));
         p->insn = I_OR;
-        
+
         return A_RESCAN;
     }
     return A_BAD;
@@ -185,9 +185,9 @@ TAction check_cmp(CInstruction* p)
 TAction check_zerotest(CInstruction* p)
 {
     if((p->insn==I_ADD || p->insn==I_SUB || p->insn==I_OR
-        || p->insn==I_AND || p->insn==I_XOR /*|| p->insn==I_INC
+        || p->insn==I_AND || p->insn==I_XOR /* [OBSOLETE] || p->insn==I_INC
         || p->insn==I_DEC*/)
-       /*&& p->args[0]->type==CArgument::REGISTER*/ && p->next) {
+       /* [OBSOLETE] && p->args[0]->type==CArgument::REGISTER*/ && p->next) {
         /*
          *  op reg,xxx
          *  nulltest reg
@@ -195,15 +195,15 @@ TAction check_zerotest(CInstruction* p)
          */
         CInstruction* in = p->next;
         if(in->insn==I_OR || in->insn==I_AND) {
-            /* and/or */
-            if(/*in->args[0]->type != CArgument::REGISTER
+            /* AND/OR */
+            if(/* [OBSOLETE] in->args[0]->type != CArgument::REGISTER
                || in->args[0]->reg != p->args[0]->reg*/
                !(*in->args[0] == *p->args[0])
                || !(*in->args[0]==*in->args[1]))
                 return A_BAD;
         } else if(in->insn==I_CMP) {
-            /* cmp reg,0 */
-            if(/*in->args[0]->type != CArgument::REGISTER
+            /* CMP reg,0 */
+            if(/* [OBSOLETE] in->args[0]->type != CArgument::REGISTER
                || in->args[0]->reg != p->args[0]->reg*/
                !(*in->args[0] == *p->args[0])
                || !in->args[1]->is_immed(0))
@@ -221,26 +221,26 @@ TAction check_zerotest(CInstruction* p)
 }
 
 /*
- *  Nulltest gefolgt von `jnb' oder `jb'
+ *  Nulltest gefolgt von `JNB' oder `JB'
  */
 TAction check_zerotest_jb(CInstruction* p)
 {
-    if((((p->insn==I_AND || p->insn==I_OR) && *p->args[0]==*p->args[1]))
-       || (p->insn==I_CMP && p->args[1]->is_immed(0))) {
+    if(((((p->insn==I_AND || p->insn==I_OR) && *p->args[0]==*p->args[1]))
+       || (p->insn==I_CMP && p->args[1]->is_immed(0))) && p->next) {
         CInstruction* n = p->next;
         if(n->insn==I_JCC && (n->param==3 || n->param==2)) {
-            /* Nulltest + jb/jnb */
+            /* Nulltest + JB/JNB */
             if(n->param == 3) {
-                /* jnb -> jmp */
+                /* JNB -> JMP */
                 n->insn = I_JMPN;
             } else {
-                /* jb -> löschen */
+                /* JB -> löschen */
                 p->next = n->next;
                 delete n;
             }
             return A_RESCAN;
         } else if(n->insn==I_JMPN) {
-            /* Nulltest + jmp */
+            /* Nulltest + JMP */
             if(flag_check(n->args[0]->label->next))
                 /* Nulltest löschen */
                 return A_DELETE;
@@ -250,7 +250,7 @@ TAction check_zerotest_jb(CInstruction* p)
 }
 
 /*
- *  add/sub r/m,imm
+ *  ADD/SUB r/m,imm
  *  imm mit speziellen Werten
  */
 TAction check_smalladd(CInstruction* p)
@@ -286,7 +286,7 @@ TAction check_smalladd(CInstruction* p)
     if(p->args[0]->is_word_reg()) {
         if(p->args[0]->reg==rSP && !increase
            && (delta==2 || (delta==4 && do_size))) {
-            /* sub sp,2  resp.  sub sp,4 */
+            /* SUB SP,2  resp.  SUB SP,4 */
             p->insn = I_PUSH;
             delete p->args[0];
             delete p->args[1];
@@ -360,7 +360,7 @@ static bool arg_compare(CArgument* l, CArgument* r)
     } else
         if(t1 == 2 || t2 == 2)  // Aliasing-Probleme!
             return false;
-        return (t1 > t2);
+    return (t1 > t2);
 }
 
 /* true, wenn die Instruktionen von /p/ an auf Speicher zugreifen */
@@ -374,6 +374,7 @@ bool references_memory(CInstruction* p)
             for(int i = 0; i < 3; i++)
                 if(p->args[i] && p->args[i]->type == CArgument::MEMORY)
                     return true;
+            break;
         }
         p = p->next;
     }
@@ -381,7 +382,7 @@ bool references_memory(CInstruction* p)
 }
 
 /*
- *  Verschiedene Dinge mit mov
+ *  Verschiedene Dinge mit MOV
  */
 TAction check_mov(CInstruction* p)
 {
@@ -391,7 +392,7 @@ TAction check_mov(CInstruction* p)
     if(p->args[0]->type==CArgument::MEMORY && p->args[1]->type==CArgument::IMMEDIATE
        && p->args[1]->reloc==0) {
         /*
-         *  mov mem,const
+         *  MOV mem,const
          */
         if(n && n->insn==I_MOV
            && n->args[0]->type==CArgument::MEMORY
@@ -399,11 +400,11 @@ TAction check_mov(CInstruction* p)
            n->args[1]->reloc==0) {
             if(p->opsize==1 && n->opsize==1) {
                 /*
-                 * mov(1) mem,const
-                 * mov(1) mem,const
-                 * -> mov(2) mem,const
+                 * MOV(1) mem,const
+                 * MOV(1) mem,const
+                 * -> MOV(2) mem,const
                  */
-                
+
                 n->args[0]->inc_imm(1);
                 if(*p->args[0]==*n->args[0]) {
                     /* erster Befehl lädt auf höhere Adresse */
@@ -412,6 +413,7 @@ TAction check_mov(CInstruction* p)
                     n->args[1]->immediate =
                         (n->args[1]->immediate & 255) +
                         p->args[1]->immediate * 256;
+                    n->args[1]->imm_size = 2;
                     return A_DELETE;
                 }
                 n->args[0]->inc_imm(-2);
@@ -421,6 +423,7 @@ TAction check_mov(CInstruction* p)
                     n->opsize = 2;
                     n->args[1]->immediate =
                         256 * n->args[1]->immediate + (p->args[1]->immediate & 255);
+                    n->args[1]->imm_size = 2;
                     return A_DELETE;
                 }
                 n->args[0]->inc_imm(1);
@@ -459,8 +462,8 @@ TAction check_mov(CInstruction* p)
     if(p->args[0]->is_word_reg() && p->args[1]->is_word_reg()
        && (p->args[0]->reg==rAX || p->args[1]->reg==rAX)) {
         /*
-         * mov reg,ax / mov ax,reg
-         * -> durch `xchg' ersetzen (1 Byte kürzer), wenn das
+         * MOV r16,AX / MOV AX,r16
+         * -> durch `XCHG' ersetzen (1 Byte kürzer), wenn das
          *    Quellregister nicht mehr benötigt wird.
          */
         TRegister src = p->args[1]->reg;
@@ -478,7 +481,7 @@ TAction check_mov(CInstruction* p)
                 && !n->args[1]->uses_reg(src))
             /* IMUL src,[FOO],n */
             doit=true;
-        
+
         if(doit) {
             p->insn = I_XCHG;
             return A_RESCAN;
@@ -489,19 +492,19 @@ TAction check_mov(CInstruction* p)
        && p->next->insn==I_JCC
        && p->next->args[0]->type==CArgument::LABEL) {
         /*
-         * mov rb,0 
-         * jcc label
+         * MOV r8,0
+         * Jcc label
          */
         CInstruction* jump_insn = p->next;
         CInstruction* inc_insn = jump_insn->next;
-        
+
         if(inc_insn && inc_insn->insn==I_INC && inc_insn->args[0]->is_word_reg()
            && jump_insn->args[0]->label==inc_insn->next) {
             /*
-             * mov rb,0
-             * jcc $+3
-             * inc rw
-             * -> setcc rb
+             * MOV r8,0
+             * Jcc $+3
+             * INC r16
+             * -> SETcc r8
              * auch bei !do_386, der Assembler drieselt das wieder auf
              */
             TRegister reg = p->args[0]->reg;
@@ -522,19 +525,19 @@ TAction check_mov(CInstruction* p)
     }
 
     /*
-     *   mov [foo], blurfl
-     *   mov reg, [foo]
-     *   -> mov reg, blurfl      | mov [foo],blurfl
-     *      mov [foo], reg       | mov reg,blurfl
+     *   MOV [foo], blurfl
+     *   MOV reg, [foo]
+     *   -> MOV reg, blurfl      | MOV [foo],blurfl
+     *      MOV [foo], reg       | MOV reg,blurfl
      */
     if(p->args[0]->type==CArgument::MEMORY             // Speicher-Argument
        && p->next                                      // gibt nächsten
-       && p->next->insn==I_MOV                         // der ein mov ist
+       && p->next->insn==I_MOV                         // der ein MOV ist
        && *p->args[0] == *p->next->args[1]             // memory operand ist derselbe
-       && ((p->args[1]->type==CArgument::REGISTER      // mov [mem],reg
+       && ((p->args[1]->type==CArgument::REGISTER      // MOV [mem],reg
             && !p->args[1]->is_seg_reg())
-           || (p->args[1]->type==CArgument::IMMEDIATE  // mov [mem],imm
-               && !p->next->args[1]->is_seg_reg()))    // und kein mov sreg,[mem]
+           || (p->args[1]->type==CArgument::IMMEDIATE  // MOV [mem],imm
+               && !p->next->args[1]->is_seg_reg()))    // und kein MOV Sr,[mem]
        )
     {
         if(p->args[0]->memory[0] == rBP && !references_memory(p->next->next)) {
@@ -567,8 +570,8 @@ TAction check_mov(CInstruction* p)
     }
 
     /*
-     *  mov a,b
-     *  mov b,a
+     *  MOV a,b
+     *  MOV b,a
      */
     if(p->next->insn == I_MOV &&
        *p->args[0] == *p->next->args[1] &&
@@ -583,7 +586,7 @@ TAction check_mov(CInstruction* p)
 }
 
 /*
- *  xchg-Befehle
+ *  XCHG-Befehle
  */
 TAction check_xchg(CInstruction* p)
 {
@@ -592,13 +595,13 @@ TAction check_xchg(CInstruction* p)
     CInstruction* n = p->next;
     if(n->insn != I_XCHG && n->insn != I_MOV)
         return A_BAD;
-    
+
     if((*p->args[0]==*n->args[0] && *p->args[1]==*n->args[1])
        || (*p->args[1]==*n->args[0] && *p->args[0]==*n->args[1])) {
         if(p->next->insn == I_XCHG) {
             /*
-             *  xchg foo,bar
-             *  xchg foo,bar
+             *  XCHG foo,bar
+             *  XCHG foo,bar
              *  -> löschen
              */
             p->next = n->next;
@@ -606,9 +609,9 @@ TAction check_xchg(CInstruction* p)
             return A_DELETE;
         } else {
             /*
-             *  xchg foo,bar
-             *  mov foo,bar
-             *  -> xchg löschen, mov umdrehen
+             *  XCHG foo,bar
+             *  MOV foo,bar
+             *  -> XCHG löschen, MOV umdrehen
              */
             CArgument* a = n->args[0];
             n->args[0] = n->args[1];
@@ -620,13 +623,13 @@ TAction check_xchg(CInstruction* p)
 }
 
 /*
- *  mov reg,[foo]
+ *  MOV reg,[foo]
  *  op reg,{reg,imm}
- *  mov [foo],reg
+ *  MOV [foo],reg
  */
 TAction check_maybe_unary(CInstruction* p)
 {
-    /* mov reg,[foo] */
+    /* MOV reg,[foo] */
     if(p->insn != I_MOV || (!p->args[0]->is_word_reg() && !p->args[0]->is_byte_reg())
        || p->args[1]->type != CArgument::MEMORY)
         return A_BAD;
@@ -642,7 +645,7 @@ TAction check_maybe_unary(CInstruction* p)
        || op->args[1]->uses_reg_part(p->args[0]->reg))
         return A_BAD;
 
-    /* mov [foo],reg */
+    /* MOV [foo],reg */
     CInstruction* mov = op->next;
     if(mov->insn != I_MOV || !(*mov->args[0] == *p->args[1])
        || !(*mov->args[1] == *p->args[0]))
@@ -671,9 +674,9 @@ TAction check_maybe_unary(CInstruction* p)
 }
 
 /*
- *  push [mem]
- *  mov reg,[mem]
- *  -> tauschen, dann wird push kürzer
+ *  PUSH [mem]
+ *  MOV reg,[mem]
+ *  -> tauschen, dann wird PUSH kürzer
  */
 TAction check_push_reg(CInstruction* p)
 {
@@ -698,26 +701,28 @@ TAction check_push_reg(CInstruction* p)
 }
 
 /*
- *  shl foo,N
- *  shl foo,M
- *  => shl foo, N+M
+ *  SHL foo,N
+ *  SHL foo,M
+ *  => SHL foo, N+M
  *  (passiert bei Arrayindizierung pword^[2*i])
+ *  and the same for other shift instructions
  *
- *  shl reg,1
- *  => add reg,reg
+ *  SHL reg,1
+ *  => ADD reg,reg
  */
 TAction check_shift(CInstruction* p)
 {
-    if(p->insn == I_SHL && p->args[1]->type == CArgument::IMMEDIATE
-       && !p->args[1]->reloc) {
-        if(p->next->insn == I_SHL      
-           && p->next->args[1]->type == CArgument::IMMEDIATE
-           && !p->next->args[1]->reloc
-           && *p->args[0] == *p->next->args[0]) {
+    if((p->insn == I_SHL || p->insn == I_SHR || p->insn == I_ROL || p->insn == I_ROR
+        || p->insn == I_RCL || p->insn == I_RCR || p->insn == I_SAR)
+       && p->args[1]->is_immed()) {
+        if(do_286 && p->next->insn == p->insn
+           && p->next->args[1]->is_immed()
+           && *p->args[0] == *p->next->args[0]
+           && p->next->args[1]->immediate + p->args[1]->immediate < 256) {
             p->next->args[1]->immediate += p->args[1]->immediate;
             return A_DELETE;
         }
-        if(p->args[1]->is_immed(1) && p->args[0]->type == CArgument::REGISTER) {
+        if(p->insn == I_SHL && p->args[1]->is_immed(1) && p->args[0]->type == CArgument::REGISTER) {
             delete p->args[1];
             p->args[1] = new CArgument(*p->args[0]);
             p->insn = I_ADD;
@@ -729,10 +734,10 @@ TAction check_shift(CInstruction* p)
 
 /*
  *  FOR-Anfang:
- *    mov [i],n        ->    mov [i],n-1
- *    jmp skip             cont:
- *  cont:                    inc [i]
- *    inc [i]              skip:
+ *    MOV [i],n        ->    MOV [i],n-1
+ *    JMP skip             cont:
+ *  cont:                    INC [i]
+ *    INC [i]              skip:
  *  skip:
  */
 TAction check_for_init(CInstruction* p)
@@ -756,7 +761,7 @@ TAction check_for_init(CInstruction* p)
        || p->next->args[0]->label != q->next)
         return A_BAD;
 
-    CInstruction* j = p->next;         // jmp
+    CInstruction* j = p->next;         // JMP
     p->next = j->next;
     delete j;
     if(q->insn==I_INC)
@@ -775,8 +780,8 @@ TAction check_zero_arit(CInstruction* p)
         return A_BAD;
     switch(p->insn) {
      case I_AND:
-        /* and foo,0
-           -> xor foo,foo  [wenn möglich] */
+        /* AND foo,0
+           -> XOR foo,foo  [wenn möglich] */
         if(p->args[0]->type != CArgument::REGISTER)
             return A_BAD;
         p->insn = I_XOR;
@@ -785,8 +790,8 @@ TAction check_zero_arit(CInstruction* p)
         return A_RESCAN;
      case I_OR:
      case I_SUB:
-        /* or foo,0
-           -> or foo,foo  [wenn möglich] */
+        /* OR foo,0
+           -> OR foo,foo  [wenn möglich] */
         if(p->args[0]->type != CArgument::REGISTER)
             return A_BAD;
         p->insn = I_OR;
@@ -799,22 +804,22 @@ TAction check_zero_arit(CInstruction* p)
 }
 
 /*
- *  cwd
- *  mov cx,wert
- *  xor bx,bx
- *  call <un=sys_unit_offset, rt=30, rb=28, ro=0>
- *  => mov cx,wert
- *     imul cx
+ *  CWD
+ *  MOV CX,wert
+ *  XOR BX,BX
+ *  CALL <un=sys_unit_offset, rt=30, rb=28, ro=0>
+ *  => MOV CX,wert
+ *     IMUL CX
  *
- *  cwd
- *  call <un=sys_unit_offset, rt=30, rb=50, ro=0>
- *  => imul ax
+ *  CWD
+ *  CALL <un=sys_unit_offset, rt=30, rb=50, ro=0>
+ *  => IMUL AX
  */
 TAction check_cwd_longmul(CInstruction* p)
 {
     if(p->insn != I_CWD)
         return A_BAD;
-    
+
     CInstruction* movcx = p->next;
 
     if(!movcx)
@@ -833,7 +838,7 @@ TAction check_cwd_longmul(CInstruction* p)
         movcx->opsize = 2;
         return A_DELETE;
     }
-    
+
     if(!movcx || movcx->insn!=I_MOV || !movcx->args[0]->is_reg(rCX)
        || movcx->args[1]->type != CArgument::IMMEDIATE
        || movcx->args[1]->reloc || (movcx->args[1]->immediate & 0x8000))
@@ -865,11 +870,11 @@ TAction check_cwd_longmul(CInstruction* p)
 }
 
 /*
- *   jcc SKIP
- *   mov T, A1         mov T, A1
- *   jmp FOO      =>   jncc FOO
- * SKIP:               mov T, A2
- *   mov T, A2
+ *   Jcc skip
+ *   mov T, A1         MOV T, A1
+ *   JMP foo      =>   jncc foo
+ * skip:               MOV T, A2
+ *   MOV T, A2
  *
  *   wenn T unabhängig von A2
  */
@@ -912,23 +917,29 @@ TAction check_double_mov(CInstruction* i)
 }
 
 /*
- *   mov REG, <anything>
- *   pop REG1
+ *   MOV reg1, <anything>
+ *   POP reg2
  *   -> tauschen, wenn unabhängig
  *
- *   push <anything>
- *   mov REG, <anything>
+ *   MOV reg, <anything>
+ *   POP reg
+ *   -> delete MOV
+ *
+ *   PUSH <anything>
+ *   MOV reg, <anything>
  *   -> tauschen, wenn unabhängig (Ziel: DFA möglich machen)
  */
 TAction check_mov_pop(CInstruction* i)
 {
     CInstruction* n;
     if(i->insn == I_MOV && i->next->insn == I_POP) {
-        if(i->args[0]->type != CArgument::REGISTER 
+        if(i->args[0]->type != CArgument::REGISTER
            || i->next->args[0]->type != CArgument::REGISTER)
             return A_BAD;
         if(i->args[0]->reg == rSP)
             return A_BAD;
+        if(i->args[0]->reg == i->next->args[0]->reg)
+            return A_DELETE;
         if(i->args[1]->uses_reg(i->next->args[0]->reg))
             return A_BAD;
         n = new CInstruction(I_MOV,
@@ -955,43 +966,101 @@ TAction check_mov_pop(CInstruction* i)
 
 TAction check_push_pop(CInstruction* i)
 {
-    if(i->insn != I_PUSH || i->next->insn != I_POP
-       /*|| !(*i->args[0] == *i->next->args[0])*/)
-        return A_BAD;
-
-    if(*i->args[0] == *i->next->args[0]) {
+    bool next_inc = false;
+    if(i->insn == I_PUSH && i->next->insn == I_POP) {
+        if(*i->args[0] == *i->next->args[0]) {
+            CInstruction* n = i->next;
+            i->next = n->next;
+            i->next->prev = i;
+            delete n;
+        } else {
+            /*
+             *  PUSH X
+             *  POP Y
+             *  => MOV Y, X
+             *  Der Einfachheit halber: Einer der Operanden muss ein
+             *  Word-Register sein.
+             */
+            if(!i->args[0]->is_word_reg() && !i->next->args[0]->is_word_reg())
+                 return A_BAD;
+            CInstruction* q = i->next;
+            delete q->args[1];
+            q->args[1] = new CArgument(*i->args[0]);
+            q->set_os(2);
+            q->insn = I_MOV;
+        }
+        return A_DELETE;
+    } else if(i->insn == I_PUSHA && i->next->insn == I_POPA) {
+        /*
+         * PUSHA
+         * POPA
+         * --> delete
+         */
         CInstruction* n = i->next;
         i->next = n->next;
         i->next->prev = i;
         delete n;
-    } else {
+        return A_DELETE;
+    } else if(i->insn == I_PUSH
+       && i->args[0]->is_reg(rSP) && i->next->args[0]->is_reg(rSP)
+       && ((i->next->insn == I_ADD && i->next->args[1]->is_immed(2))
+           || (next_inc = (i->next->insn == I_INC && i->next->next
+               && i->next->next->insn == I_INC && i->next->next->args[0]->is_reg(rSP))))) {
         /*
-         *  push X
-         *  pop Y
-         *  => mov Y, X
-         *  Der Einfachheit halber: Einer der Operanden muss ein
-         *  Word-Register sein.
+         * PUSH SP
+         * ADD SP,2
+         * --> delete
+         *
+         * PUSH SP
+         * INC SP
+         * INC SP
+         * --> delete
          */
-        if(!i->args[0]->is_word_reg() && !i->next->args[0]->is_word_reg())
-             return A_BAD;
-        CInstruction* q = i->next;
-        delete q->args[1];
-        q->args[1] = new CArgument(*i->args[0]);
-        q->set_os(2);
-        q->insn = I_MOV;
+        CInstruction* n = i->next;
+        if(next_inc) {
+            n = n->next;
+            delete n->prev;
+        }
+        i->next = n->next;
+        i->next->prev = i;
+        delete n;
+        return A_DELETE;
     }
-    return A_DELETE;
+    return A_BAD;
 }
 
 /*
- *  arit r1, irgendwas    => mov r2, r1
- *  mov  r2, r1              arit r2, irgendwas
+ * INC whatever
+ * DEC whatever
+ * --> delete
  *
- *  arit r1, r1           => mov r2, r1
- *  mov  r2, r1              arit r2, r2
+ * DEC whatever
+ * INC whatever
+ * --> delete
+ */
+TAction check_inc_dec(CInstruction* i)
+{
+    if(((i->insn == I_INC && i->next->insn == I_DEC)
+        || (i->insn == I_DEC && i->next->insn == I_INC))
+       && *i->args[0] == *i->next->args[0]) {
+        CInstruction* n = i->next;
+        i->next = n->next;
+        i->next->prev = i;
+        delete n;
+        return A_DELETE;
+    }
+    return A_BAD;
+}
+
+/*
+ *  arit r1, irgendwas    => MOV r2, r1
+ *  MOV  r2, r1              arit r2, irgendwas
  *
- *  mov  r1, irgendwas    => mov r2, irgendwas
- *  mov  r2, r1
+ *  arit r1, r1           => MOV r2, r1
+ *  MOV  r2, r1              arit r2, r2
+ *
+ *  MOV  r1, irgendwas    => MOV r2, irgendwas
+ *  MOV  r2, r1
  *
  *  wenn zulässig (i.e., r1 wird nicht mehr benutzt)
  */
@@ -1000,7 +1069,7 @@ TAction check_reg_swap(CInstruction* i)
     if(!i->args[0] || i->args[0]->type != CArgument::REGISTER
        || !i->next || i->next->insn != I_MOV)
         return A_BAD;
-    
+
     switch(i->insn) {
      case I_MOV:
         break;
@@ -1074,17 +1143,17 @@ TAction check_reg_swap(CInstruction* i)
 }
 
 /*
- *  push SREG
- *  push BX|SI|DI|BP
- *  push cs
- *  push <un=ofs_this_unit, rt=50, rb=block, ro=ofs>
- *  callf <un=SYSTEM, rt=30, rb=58, ro=0>
- *  => push SREG
- *     push ARG
- *     mov(2) [SREG:ARG], xx01h
+ *  PUSH SREG
+ *  PUSH BX|SI|DI|BP
+ *  PUSH CS
+ *  PUSH <un=ofs_this_unit, rt=50, rb=block, ro=ofs>
+ *  CALLF <un=SYSTEM, rt=30, rb=58, ro=0>
+ *  => PUSH SREG
+ *     PUSH ARG
+ *     MOV(2) [SREG:ARG], xx01h
  *  wenn ein Länge-1-String gepusht wird
- *     mov(2) [SREG:ARG], xx03h
- *     mov(2) [SREG:ARG+2], xxxxh
+ *     MOV(2) [SREG:ARG], xx03h
+ *     MOV(2) [SREG:ARG+2], xxxxh
  *  bei Länge 3
  */
 TAction check_push_char(CInstruction* i)
@@ -1110,7 +1179,7 @@ TAction check_push_char(CInstruction* i)
     CRelo* r = push3->args[0]->reloc;
     // FIXME? Annahme, daß Turbo nie solche Referenzen erzeugt, die
     // auf externe Blöcke zeigen
-    if(!r || /*r->unitnum!=ref_this_unit ||*/ r->rtype != CODE_OFS_REF ||
+    if(!r || /* [OBSOLETE] r->unitnum!=ref_this_unit ||*/ r->rtype != CODE_OFS_REF ||
        r->rblock != global_code_id)
         return A_BAD;
 
@@ -1127,14 +1196,14 @@ TAction check_push_char(CInstruction* i)
     if(len != 1 && len != 3)
         return A_BAD;
 
-    /* callf ersetzen */
+    /* CALLF ersetzen */
     delete call->args[0];
     call->insn = I_MOV;
     call->opsize = 2;
-    call->args[0] = new CArgument(reg, rNONE, 0, 0, segment);
-    call->args[1] = new CArgument(256 * global_code_ptr[rofs+1] + len);
+    call->args[0] = new CArgument(reg, rNONE, 0, 0, 0, segment);
+    call->args[1] = new CArgument(256 * global_code_ptr[rofs+1] + len, 2);
 
-    /* push2, push3 eliminieren */
+    /* PUSH2, PUSH3 eliminieren */
     push1->next = call;
     call->prev = push1;
     delete push2;
@@ -1142,8 +1211,8 @@ TAction check_push_char(CInstruction* i)
 
     if(len == 3) {
         CInstruction* p = new CInstruction(I_MOV,
-                new CArgument(reg, rNONE, 2, 0, segment),
-                new CArgument(256 * global_code_ptr[rofs+3] + (unsigned char)global_code_ptr[rofs+2]));
+                new CArgument(reg, rNONE, 2, 2, 0, segment),
+                new CArgument(256 * global_code_ptr[rofs+3] + (unsigned char)global_code_ptr[rofs+2], 2));
         p->set_os(2);
         p->next = call->next;
         p->prev = call;
@@ -1155,11 +1224,11 @@ TAction check_push_char(CInstruction* i)
 }
 
 /*
- *   les reg, [...]
- *   push es
- *   push di
- *   => push(4) [...]
- *      wenn zulaessig, nur im 386er Modus
+ *   LES reg, [...]
+ *   PUSH ES
+ *   PUSH DI
+ *   => PUSH(4) [...]
+ *      wenn zulässig, nur im 386er Modus
  */
 TAction check_push_ptr(CInstruction* i)
 {
@@ -1205,14 +1274,14 @@ TAction check_push_ptr(CInstruction* i)
 }
 
 /*
- *   mov [bp+],value        <- i
- *   jmp <label>            <- j
+ *   MOV [BP+],value        <- i
+ *   JMP <label>            <- j
  *   ...
  *   label                  <- l
- *   mov reg, [mem]         <- m
+ *   MOV reg, [mem]         <- m
  *   end-of-function
- *   => mov reg, value
- *      jmp label+1
+ *   => MOV reg, value
+ *      JMP label+1
  */
 TAction check_func_return(CInstruction* i)
 {
@@ -1225,19 +1294,22 @@ TAction check_func_return(CInstruction* i)
         return A_BAD;
 
     CInstruction* l = j->args[0]->label;
-//    if(l->ip < j->ip)
-//        return A_BAD;
+/* [OBSOLETE]
+    if(l->ip < j->ip)
+        return A_BAD;
+*/
 
     CInstruction* m = l->next;
     if(m->insn != I_MOV || !(*m->args[1] == *i->args[0])
        || m->opsize != i->opsize
        || (i->args[1]->type == CArgument::IMMEDIATE && m->args[0]->is_seg_reg())
-       || !m->next /* nicht noetig, vereinfacht aber die Implementation */)
+       || !m->next /* nicht nötig, vereinfacht aber die Implementation */)
         return A_BAD;
 
     if(references_memory(m->next))
         return A_BAD;
-/*    for(CInstruction* p = m->next; p != 0; p = p->next) {
+/* [OBSOLETE]
+    for(CInstruction* p = m->next; p != 0; p = p->next) {
         switch(p->insn) {
          case I_JMPN: case I_JMPF: case I_CALLN: case I_CALLF:
             return A_BAD;
@@ -1245,8 +1317,10 @@ TAction check_func_return(CInstruction* i)
             for(int i = 0; i < 3; i++)
                 if(p->args[i] && p->args[i]->type == CArgument::MEMORY)
                     return A_BAD;
+            break;
         }
-    }*/
+    }
+*/
 
     /* ok */
     CInstruction* lb;
@@ -1272,7 +1346,7 @@ TAction check_func_return(CInstruction* i)
  */
 TAction check_int_arit(CInstruction* i)
 {
-    if(i->insn == I_AND && i->args[0]->is_byte_reg() 
+    if(i->insn == I_AND && i->args[0]->is_byte_reg()
        && i->args[1]->type == CArgument::IMMEDIATE && !i->args[1]->reloc
        && i->next->insn == I_XOR) {
         TRegister rl = i->args[0]->reg;
@@ -1281,9 +1355,9 @@ TAction check_int_arit(CInstruction* i)
            && i->next->args[0]->is_reg(rh)
            && i->next->args[1]->is_reg(rh)) {
             /*
-             *  and RL, N
-             *  xor RH, RH
-             *  -> and RX, N
+             *  AND RL, N
+             *  XOR RH, RH
+             *  -> AND RX, N
              */
             i->args[0]->reg = TRegister(rl - rAL + rAX);
             i->args[1]->immediate &= 0xFFU;
@@ -1297,7 +1371,7 @@ TAction check_int_arit(CInstruction* i)
 }
 
 /*
- *  "tote" Vergleiche loeschen. Entstehen z.B. bei
+ *  "tote" Vergleiche löschen. Entstehen z.B. bei
  *  IF (longvar>=0) AND (longvar<100) ...
  */
 TAction check_dead_tests(CInstruction* i)
@@ -1331,6 +1405,7 @@ TAction (*functions[])(CInstruction* i) = {
     check_double_mov,
     check_mov_pop,
     check_push_pop,
+    check_inc_dec,
     check_reg_swap,
     check_push_char,
     check_push_ptr,
@@ -1372,6 +1447,6 @@ CInstruction* peephole_optimization(CInstruction* insn)
                 i++;
         }
     }
-    
+
     return insn;
 }

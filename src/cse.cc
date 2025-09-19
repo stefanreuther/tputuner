@@ -22,8 +22,10 @@ using std::cout;
 using std::cerr;
 using std::endl;
 
-//#define IFDEBUG if(debugflag)
-//bool debugflag = 0;
+/* [OBSOLETE]
+#define IFDEBUG if(debugflag)
+bool debugflag = 0;
+*/
 #define IFDEBUG if(0)
 
 /* Registerbeeinflussung updaten (Byteregister beeinflussen ihre
@@ -41,7 +43,7 @@ void OperandSet::fix_regs()
     DREG(rCX, rCH, rCL);
     DREG(rDX, rDH, rDL);
 #undef DREG
-    
+
     regs &= ~(1 << rNONE);
 }
 
@@ -60,7 +62,7 @@ void OperandSet::fix_regs_conservative()
     DREG(rCX, rCH, rCL);
     DREG(rDX, rDH, rDL);
 #undef DREG
-    
+
     regs &= ~(1 << rNONE);
 }
 
@@ -76,7 +78,7 @@ void OperandSet::add_op(CArgument* a, OperandSet& read)
         a->print(cout);
         cout << ")" << endl;
     }
-        
+
     switch(a->type) {
      case CArgument::REGISTER:
         regs |= (1 << a->reg);
@@ -138,7 +140,9 @@ bool is_break(CInstruction* p)
      case I_INVALID:
      case I_LABEL:
      case I_CALLN:
-     case I_STRING:             // handle these like calls
+     case I_STRING:
+     case I_IN:
+     case I_OUT:                // handle these like calls
         return true;
      default:
         return false;
@@ -190,12 +194,37 @@ void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
         in.add_op(p->args[0]);
         in.stack = true;
         break;
+     case I_POPF:
+        out.stack = true;
+        break;
+     case I_PUSHF:
+        in.flags = true;
+        in.stack = true;
+        break;
+     case I_POPA:
+        out.regs |= (1 << rAX) | (1 << rBX) | (1 << rCX) | (1 << rDX)
+                  | (1 << rSP) | (1 << rBP) | (1 << rSI) | (1 << rDI);
+        break;
+     case I_PUSHA:
+        in.regs |= (1 << rAX) | (1 << rBX) | (1 << rCX) | (1 << rDX)
+                 | (1 << rSP) | (1 << rBP) | (1 << rSI) | (1 << rDI);
+        break;
      case I_DEC:
      case I_INC:
      case I_NOT:
-     case I_NEG:                       
+     case I_NEG:
         in.add_op(p->args[0]);
         out.add_op(p->args[0], in);
+        out.flags = true;
+        break;
+     case I_BCD:
+        if(p->opsize == 1) {
+            in.regs |= (1 << rAL);
+            out.regs |= (1 << rAL);
+        } else {
+            in.regs |= (1 << rAX);
+            out.regs |= (1 << rAX);
+        }
         out.flags = true;
         break;
      case I_SBB:
@@ -217,6 +246,7 @@ void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
         out.add_op(p->args[0], in);
         /* FALLTHROUGH */
      case I_CMP:
+     case I_TEST:
         in.add_op(p->args[0]);
         in.add_op(p->args[1]);
         out.flags = true;
@@ -232,12 +262,11 @@ void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
         /* FALLTHROUGH */
      case I_MUL:
         in.add_op(p->args[0]);
+        out.regs |= (1 << rAX);
         if(p->opsize == 1) {
             in.regs |= (1 << rAL);
-            out.regs |= (1 << rAX);
         } else {
             in.regs |= (1 << rAX);
-            out.regs |= (1 << rAX);
             out.regs |= (1 << rDX);
         }
         out.flags = true;
@@ -245,14 +274,11 @@ void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
      case I_DIV:
      case I_IDIV:
         in.add_op(p->args[0]);
-        if(p->opsize == 1) {
-            in.regs |= (1 << rAX);
-            out.regs |= (1 << rAX);
-        } else {
+        in.regs |= (1 << rAX);
+        out.regs |= (1 << rAX);
+        if(p->opsize == 2) {
             in.regs |= (1 << rDX);
-            in.regs |= (1 << rAX);
             out.regs |= (1 << rDX);
-            out.regs |= (1 << rAX);
         }
         out.flags = true;
         break;
@@ -264,6 +290,11 @@ void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
      case I_RETN:
      case I_RETF:
         break;
+     case I_LOOP:
+        if(p->param != 2)
+            in.flags = true;
+        out.regs |= (1 << rCX);
+        /* FALLTHROUGH */
      case I_JCXZ:
         in.regs |= (1 << rCX);
         break;
@@ -273,25 +304,48 @@ void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
         break;
      case I_CWD:
         in.regs |= (1 << rAX);
-        out.regs |= (1 << rAX);
-        out.regs |= (1 << rDX);
+        out.regs |= (1 << rAX) | (1 << rDX);
+        break;
+     case I_XLAT:
+        in.regs |= (1 << rAL) | (1 << rBX);
+        out.regs |= (1 << rAL);
         break;
      case I_ENTER:
      case I_LEAVE:
-        in.regs |= (1 << rSP);
-        in.regs |= (1 << rBP);
-        out.regs |= (1 << rSP);
-        out.regs |= (1 << rBP);
+        in.regs |= (1 << rSP) | (1 << rBP);
+        out.regs |= (1 << rSP) | (1 << rBP);
         break;
      case I_SETCC:
-        out.add_op(p->args[0], in);
         in.flags = true;
+        out.add_op(p->args[0], in);
+        break;
+     case I_SETALC:
+        in.flags = true;
+        out.regs |= (1 << rAL);
         break;
      case I_STRING:
         // FIXME: this does not happen
         break;
      case I_FLAG:
-        // right now, only cld/std which do not change flags that we look at
+        out.flags = true;
+        break;
+     case I_LAHF:
+        in.flags = true;
+        out.regs |= (1 << rAH);
+        break;
+     case I_SAHF:
+        in.regs |= (1 << rAH);
+        out.flags = true;
+        break;
+     case I_IN:
+        in.add_op(p->args[1]);
+        out.add_op(p->args[0], in);
+        break;
+     case I_OUT:
+        in.add_op(p->args[0]);
+        in.add_op(p->args[1]);
+        break;
+     default:
         break;
     }
 }
@@ -320,7 +374,7 @@ void merge_os(OperandSet& a, const OperandSet& b)
 /* Abhängigkeiten berechnen
    intelligentere Version
    erzeugte Werte stehen nicht unter /in/
-   (e.g., bei mov ax,3 / add ax,2 ist ax kein Eingaberegister) */
+   (e.g., bei MOV AX,3 / ADD AX,2 ist AX kein Eingaberegister) */
 void compute_dependencies_int(OperandSet& in, OperandSet& out,
                               CInstruction* p, CInstruction* end)
 {
@@ -330,10 +384,12 @@ void compute_dependencies_int(OperandSet& in, OperandSet& out,
 
     OperandSet this_out;
     OperandSet this_in;
-    
+
     compute_insn_dep(this_in, this_out, p);
-    /* out = out + this_out */
-    /* in = (in - this_out) + this_in */
+/* [OBSOLETE]
+    out = out + this_out;
+    in = (in - this_out) + this_in;
+*/
 
     in.regs &= ~this_out.regs;
     in.flags &= !this_out.flags;
@@ -343,9 +399,9 @@ void compute_dependencies_int(OperandSet& in, OperandSet& out,
                 in.mem.erase(j);
                 break;
             }
-    
+
     merge_os(out, this_out);
-    merge_os(in, this_in);    
+    merge_os(in, this_in);
 }
 
 /* true, wenn a und b disjunkt sind */
@@ -363,10 +419,10 @@ bool check_dependencies(OperandSet& a, OperandSet& b)
 
 /* CSE durchführen, wobei a1,a2->Anfang der <codeA>-Stücken */
 /* Precondition: *a1 == *a2 */
-/* les==true -> a1 ist `les foo, bar' und a2 ist `mov foo, bar'
+/* les==true -> a1 ist `LES foo, bar' und a2 ist `MOV foo, bar'
    diese werden als identisch betrachtet. Das sollte keine Probleme
-   geben; die entsprechende Sequenz `mov es, bar[2]; mov foo, bar'
-   am Anfang wuerde exakt gleich optimiert. (der Parameter les hat
+   geben; die entsprechende Sequenz `MOV ES, bar[2]; MOV foo, bar'
+   am Anfang würde exakt gleich optimiert. (der Parameter les hat
    dz. keinen Einfluss) */
 bool try_cse(CInstruction* a1, CInstruction* a2, bool les)
 {
@@ -398,14 +454,16 @@ bool try_cse(CInstruction* a1, CInstruction* a2, bool les)
                && !codeb_read.flags && !codea_read.flags && flag_check(a2end)) {
                 codea_write.flags = codeb_write.flags = false;
             }
-/*if(had_call)
+/* [DEBUG]
+if(had_call)
 cout << "\naread=" << codea_read
      << "\nawrite=" << codea_write
      << "\nbwrite=" << codeb_write
      << "\ncheck_dep(aread, awrite) = " << check_dependencies(codea_read, codea_write)
      << "\ncheck_dep(aread, bwrite) = " << check_dependencies(codea_read, codeb_write)
      << "\ncheck_dep(awrite, bwrite) = " << check_dependencies(codea_write, codeb_write)
-     << "\n";*/
+     << "\n";
+*/
 
             if(check_dependencies(codea_read, codea_write)
                && check_dependencies(codea_read, codeb_write)
@@ -427,7 +485,7 @@ cout << "\naread=" << codea_read
         /* wir können was löschen */
         if (had_call)      /* DEBUGGING */
             cout << "@";
-#if 0
+/* [DEBUG]
         cout << endl << endl << "<<< CSE Result >>>" << endl;
 
         for(CInstruction* i = a1; i != maxb; i = i->next) {
@@ -443,7 +501,7 @@ cout << "\naread=" << codea_read
             i->print(cout);
         }
         cout << endl << endl;
-#endif
+*/
 
         /* löschen */
         CInstruction* p = a1;
@@ -452,10 +510,10 @@ cout << "\naread=" << codea_read
         while(p->next != a2endmax) {
             CInstruction* q = p->next;
             p->next = q->next;
-            delete q;            
+            delete q;
         }
         changed = true;
-        
+
         return true;
     }
     return false;

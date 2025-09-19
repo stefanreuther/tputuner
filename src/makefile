@@ -1,9 +1,19 @@
 #
-#  Makefile for TPUTUNER / MinGW additions
+#  Makefile for TPUTUNER
 #
 
-EXENAME := tputuner.exe
-CFLAGS := -Wall -ansi -pedantic -Wno-write-strings -Wno-overflow -O2 -g -Wl,--strip-all -pipe -ffunction-sections -fdata-sections -Wl,--gc-sections
+#OPT_DEBUG := X
+OPT_BIT := 32
+EXENAME := tputuner
+CFLAGS := -Wall -ansi -pedantic -Wno-write-strings -Wno-overflow
+ifndef DJDIR
+  CFLAGS += $(if $(OPT_BIT),-m$(OPT_BIT) ,)-static -pipe -ffunction-sections -fdata-sections -Wl,--gc-sections
+endif
+ifdef OPT_DEBUG
+  CFLAGS += -ggdb
+else
+  CFLAGS += -O2 -g -Wl,--strip-all
+endif
 
 ifdef DJDIR
 GCC := gxx
@@ -12,6 +22,14 @@ GCC := g++
 endif
 
 # No user-serviceable parts below
+ifdef WINDIR
+  EXEEXT := .exe
+endif
+ifdef DJDIR
+  EXEEXT := .exe
+endif
+EXENAME := $(EXENAME)$(EXEEXT)
+
 OBJECTS := tputuner.o optimize.o insn.o disassemble.o codewriter.o assemble.o \
            dfa.o global.o peephole.o regalloc.o strcomb.o cse.o
 LIBS :=

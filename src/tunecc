@@ -1,7 +1,0 @@
-#!/bin/sh
-
-for i in /dos/p/vplanets/cc/*.tpu; do
-  echo $i 1>&2
-  echo $i
-  ./tputuner -r $i
-done

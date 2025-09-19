@@ -1,3 +1,0 @@
-#! /bin/bash
-# löscht Debug-Dumps von unveränderten Blöcken
-for i in block*0; do if [ \! -e ${i%0}2 ]; then rm ${i%0}*; fi; done

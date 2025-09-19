@@ -23,19 +23,23 @@ void CCodeWriter::write_word(int i)
 
 CCWCounter::CCWCounter()
     : bytes(0), relos(0)
-{}
+{
+    extra_bytes = 0;
+}
 
 /*
  *  Codewriter, der in vorallokierten Speicher schreibt
  */
 CCWMemory::CCWMemory(char* acp, int acl, char* arp, int arl, int aip)
     : relo_ptr(arp), code_ptr(acp), relo_left(arl), code_left(acl), ip(aip)
-{}
+{
+    extra_bytes = 0;
+}
 
 void CCWMemory::wb(char c)
 {
     if(!code_left)
-	throw string("Code exceeds buffer size");
+        throw string("Code exceeds buffer size");
     *code_ptr++ = c;
     ip++;
     code_left--;
@@ -44,7 +48,7 @@ void CCWMemory::wb(char c)
 void CCWMemory::put_reloc(CRelo* r)
 {
     if(relo_left < 8)
-	throw string("Relocation buffer overflow");
+        throw string("Relocation buffer overflow");
     *relo_ptr++ = r->unitnum;
     *relo_ptr++ = r->rtype;
     *relo_ptr++ = r->rblock & 255;

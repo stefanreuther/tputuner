@@ -45,7 +45,7 @@ void check_strings(CCodeBlock* p, map<string,CInfo>& m, set<CInfo>& strs)
     p->strcomb_ok = false;
     if(p->status != CCodeBlock::OK || p->entry->entry_ofs==0)
         return;
-    
+
     int index  = 0;
     char* code = (p->new_code ? p->new_code->code : unit + p->code_ofs);
     while(index < p->entry->entry_ofs) {

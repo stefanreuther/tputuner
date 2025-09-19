@@ -11,7 +11,7 @@ struct OperandSet {
     int regs;
     vector<CArgument*> mem;
     bool flags, stack;
-    
+
     OperandSet() : regs(0), flags(false), stack(false) { }
     void fix_regs();
     void fix_regs_conservative();

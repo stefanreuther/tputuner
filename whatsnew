@@ -6,16 +6,105 @@ Original homepage: http://www.phost.de/~stefan/turbo.html
 
 History
 
+2025-09-19 (Joe Forster/STA)
+- Bugfixes:
+  - Hash tables in unit files are 2 bytes longer than indicated by the size descriptor. (This resulted in some function names - those in the last entry of hash tables - not getting listed with the "-n" switch.)
+  - The two instructions "MOV reg, op2; POP reg" with the same register operand are not swapped; instead, the "MOV" is deleted as its effect is discarded anyway.
+  - After a "MOV SP, whatever", the stack's state becomes unknown, therefore previously pushed values can't reliably be popped back; e.g. "PUSH op1; MOV SP, BP; POP reg" doesn't become "MOV SP, BP; MOV reg, op1".
+  - Fixed misunderstood opcodes:
+    - 27: "DAA" (not "ADD");
+    - 2F: "DAS" (not "SUB");
+    - 37: "AAA" (not "XOR");
+    - 3F: "AAS" (not "CMP").
+- Options:
+  - Options can be read from files.
+  - Added "-f" option to enable or disable (default) the removal of unused stack frames. (The corresponding code was mostly finished in the original program anyway.)
+  - Added "-2" option to enable (default) or disable 286 instructions.
+  - Added "--exclude" option to exclude functions from optimization (data in code segment, code for a non-x86 CPU etc.).
+  - Added "--format-debug" option for some additional formatting in debug dumps.
+  - Added more possibilites to turn off options.
+- Debug files:
+  - (Hexadecimal) numbers in debug file names are padded to 3 digits - "block000", "block008", "block010" etc. rather than "block0", "block8", "block10" etc. - so that they are better sorted in a directory list.
+  - Function names, if available, are added to the beginning of debug files.
+- Messages:
+  - The "XXX bytes saved (new size = XXX)" message, for each function, is displayed only when code size actually changed.
+  - An additional "XXX bytes added" message, for each function, and a "Code added: XXX" message, at the end of the unit, is displayed if the code became larger because of 286 instructions having been disabled.
+- New features:
+  - Added unrecognized opcodes:
+    - 1F: "POP DS" (was a typo);
+    - 60: "PUSHA" (186+);
+    - 61: "POPA" (186+);
+    - 6C: "INSB" (186+);
+    - 6D: "INSW" (186+);
+    - 6E: "OUTSB" (186+);
+    - 6F: "OUTSW" (186+);
+    - 84 /r: "TEST reg8/mem8, reg8";
+    - 85 /r: "TEST reg16/mem16, reg16";
+    - 86 /r: "XCHG reg8/mem8, reg8";
+    - 87 /r: "XCHG reg16/mem16, reg16";
+    - 9C: "PUSHF";
+    - 9D: "POPF";
+    - 9E: "SAHF";
+    - 9F: "LAHF";
+    - A6: "CMPSB" (was commented out);
+    - A7: "CMPSW" (was commented out);
+    - A8 ib: "TEST al, imm8";
+    - A9 iw: "TEST ax, imm8";
+    - AE: "SCASB" (was commented out);
+    - AF: "SCASW" (was commented out);
+    - D4 ib: "AAM imm8";
+    - D5 ib: "AAD imm8";
+    - D6: "SETALC";
+    - D7: "XLAT";
+    - E0 cb: "LOOPNE rel8";
+    - E1 cb: "LOOPE rel8";
+    - E2 cb: "LOOP rel8";
+    - E4 ib: "IN AL, imm8";
+    - E5 ib: "IN AX, imm8";
+    - E6 ib: "OUT imm8, AL";
+    - E7 ib: "OUT imm8, AX";
+    - EC: "IN AL, DX";
+    - ED: "IN AX, DX";
+    - EE: "OUT DX, AL";
+    - EF: "OUT DX, AX";
+    - F0: "LOCK" (prefix);
+    - F1: "INT1";
+    - F4: "HLT";
+    - F5: "CMC";
+    - F6 /0 ib: "TEST reg8/mem8, imm8";
+    - F7 /0 iw: "TEST reg16/mem16, imm16";
+    - F8: "CLC";
+    - F9: "STC";
+    - FA: "CLI";
+    - FB: "STI".
+  - [TODO] Still unrecognized opcodes:
+    - 62 /r: "BOUND reg16, mem16" (186+);
+    - 63 /r: "ARPL mem16/reg16, reg16" (286+);
+    - 64: "FS:" segment override (prefix, 386+);
+    - 65: "GS:" segment override (prefix, 386+);
+    - 66: 32-bit operand size (prefix, 386+);
+    - 67: 32-bit address size (prefix, 386+).
+- Compilation:
+  - Merged DJGPP- and MinGW-specific parts back into the main make file.
+  - The Windows executable is linked statically (requires only msvcrt.dll).
+- Source:
+  - Converted Tabs to spaces.
+  - Marked commented out code fragments with either "[DEBUG]" (debug-related) or "[OBSOLETE]" (not debug-related), to make them stand out from descriptive comments.
+  - Turned instruction mnemonics and register names in comments to uppercase, for easier distinction of fixed (uppercase) and variable (lowercase) parts.
+  - Standardized operand names in comments to "rX" (register, X bits), "rmX" (register or memory, X bits), "Sr" (segment register) and "ib"/"iw" (immediate, 8/16 bits).
+  - The "I_MAX" value contains the number of instruction mnemonics. Instruction-related arrays are defined with it so that the compiler will complain if the number of initialization elements mismatches.
+  - The -1 value stands for no value in the "param" field of "CInstruction" objects.
+
 2013-10-01 (Joe Forster/STA)
 - Bugfixes:
-  - Removed changing "mov segreg1, X", when the first instruction of a function, to "push segreg2; pop segreg1" (crash: null-pointer dereference).
-  - Added check to skip changing the instruction "or reg, reg" to itself (infinite loop of optimization passes).
+  - Removed changing "MOV Sr1, op1", when the first instruction of a function, to "PUSH Sr2; POP Sr1" (crash: null-pointer dereference).
+  - Added check to skip changing the instruction "OR reg, reg" to itself (infinite loop of optimization passes).
 - Fixed gcc errors:
   - Added inclusion of "cstdlib" (error: non-existing symbols).
   - Added some "using std::symbol" clauses (error: non-existing symbols).
   - Changed some "op1 != op2" expressions, with class-typed operands, to "!(op1 == op2)" (error: non-existing "!=" operator).
 - Fixed gcc warnings:
-  - Fixed skipping "op reg1, reg2, 0", when changing "mov [mem], const [...] mov [mem], reg" to "mov reg, const; jmp label; [...] label: mov [mem],reg", probably resulting in a program crash as it accessed the 4th operand when there are only 3 (warning: array access beyond bounds).
+  - Fixed skipping "op reg1, reg2, 0", when changing "MOV [mem], const [...]; MOV [mem], reg" to "MOV reg, const; JMP label; [...] label: MOV [mem],reg", probably resulting in a program crash as it accessed the 4th operand when there are only 3 (warning: array access beyond bounds).
   - Added parentheses around a non-trivial block of && and || operators. (warning: suggested parentheses)
-- Added DJGPP- and MinGW-specific makefiles.
+  - Added DJGPP- and MinGW-specific make files.
 - Added 32-bit Windows binary (requires libgcc_s_dw2-1.dll, libstdc++-6.dll and msvcrt.dll).

@@ -23,21 +23,22 @@ struct TEstimate {
     TEstimate(CArgument* a);
 };
 
-int changeable_args[] = {
-    0,
-    0,
+int changeable_args[I_MAX] = {
+    0,                          // invalid
+    0,                          // label
     2, 2, 2, 2, 2,              // Transfer
-    1, 1,                       // push/pop
-    1, 1,                       // inc/dec
-    2, 2, 2, 2, 2, 2, 2, 2,     // Arithmetik
-    2, 1, 1, 1,                 // mul/div
-    1, 1,                       // not/neg
-    0, 0, 0, 0, 0, 0, 0,        // Programmtransfer
-    0,
-    0, 0,                       // cbw/cwd
+    1, 1,                       // PUSH/POP
+    1, 1,                       // INC/DEC
+    2, 2, 2, 2, 2, 2, 2, 2, 2,  // Arithmetik
+    2, 1, 1, 1,                 // MUL/DIV
+    1, 1,                       // NOT/NEG
+    0, 0, 0, 0, 0, 0, 0, 0, 0,  // Programmtransfer
+    0, 0,                       // CBW/CWD
     1, 1, 1, 1, 1, 1, 1,        // Shifts
-    0, 0,                       // leave/enter
-    1                           // setcc
+    0, 0,                       // LEAVE/ENTER
+    0, 0,                       // flag/string
+    0, 0,                       // port
+    1                           // SETcc
 };
 
 
@@ -79,7 +80,7 @@ TEstimate::TEstimate(CArgument* a)
             may_adr = true;
         }
 
-        /* für Wert: benötigt `mov reg,[adr]' */
+        /* für Wert: benötigt `MOV reg,[adr]' */
         save_if_value = -1 - mem_op_size(a);
         break;
      case CArgument::IMMEDIATE:
@@ -131,7 +132,7 @@ TEstimate* estimate_read(CArgument* p, bool sex, bool have_modrm, bool znd)
         /* Speicheroperand */
         if(p->segment != rDS && p->segment != rSS)
             return 0;
-        
+
         e = get_estimation(p);
         e->save_if_adr += mem_op_size(p) - 1;
         if(p->segment != rDS)
@@ -161,7 +162,7 @@ TEstimate* estimate_read(CArgument* p, bool sex, bool have_modrm, bool znd)
 void estimate_write(CArgument* p, bool znd)
 {
     TEstimate* e = estimate_read(p, false, true, znd);
-    
+
     if(e)
         e->may_value = false;
 }
@@ -204,7 +205,7 @@ void estimate_insn(CInstruction* insn, bool znd)
         estimate_read(insn->args[1], !insn->args[0]->is_reg(rAX), !insn->args[0]->is_reg(rAX), znd);
         estimate_write(insn->args[0], znd);
         break;
-     case I_CMP:
+     case I_CMP: case I_TEST:
         /* Zwei Quelloperanden */
         estimate_read(insn->args[1], !insn->args[0]->is_reg(rAX), !insn->args[0]->is_reg(rAX), znd);
         estimate_read(insn->args[0], false, true, znd);
@@ -239,7 +240,8 @@ void estimate_insn(CInstruction* insn, bool znd)
         /* der 2. Operand kann nicht by-value verwendet werden */
         estimate_write(insn->args[1], znd);
         break;
-     default:;
+     default:
+        break;
     }
 }
 
@@ -258,7 +260,7 @@ TEstimate* find_best(bool& adr, bool may_adr)
             if(p->arg->type == CArgument::MEMORY &&
                (p->arg->memory[0]!=rNONE || p->arg->memory[1]!=rNONE))
                 p->may_value = p->may_adr = false;
-            
+
             if(p->may_value && p->save_if_value > best_save) {
                 best = p;
                 best_save = p->save_if_value;
@@ -281,7 +283,7 @@ void replace_argument(CArgument*& arg, TRegister reg, bool adr)
         if(arg->reloc)
             delete arg->reloc;
         arg->reloc = 0;
-        arg->immediate = 0;
+        arg->immediate = arg->imm_size = 0;
         arg->memory[0] = reg;
         arg->memory[1] = rNONE;
     } else {
@@ -341,7 +343,7 @@ void optimize_basic_block(CInstruction* start, CInstruction* end, bool* regs_use
             n->prev = start->prev;
             n->next = start;
             start->prev->next = n;
-            start->prev = n;            
+            start->prev = n;
         }
 
     /* Nun die Argumente ersetzen */
@@ -399,7 +401,7 @@ void global_replace(CInstruction* insn, CArgument* a, TRegister r)
                 delete insn->args[i];
                 insn->args[i] = new CArgument(r);
                 changed = true;
-            }            
+            }
         insn = insn->next;
     }
 }
@@ -435,10 +437,10 @@ void global_register_allocation(CInstruction* insn, bool* regs_used)
     }
     if(!pre)
         return;
-    
+
     insn = pre->next;
 
-    int last_ip = -1;   
+    int last_ip = -1;
     for(CInstruction* p = insn; p != 0; p = p->next)
         if(p->opsize == 2) {
             estimate_insn(p, last_ip == p->ip);
@@ -492,7 +494,7 @@ void global_register_allocation(CInstruction* insn, bool* regs_used)
                     count = 1;
                 else if((j & 1) != 0)
                     count = 2;
-                
+
                 for(int q = 0; q < count; q++) {
                     if(j >= min_bp && j <= max_bp)
                         markers[j - min_bp] = 2;
@@ -561,7 +563,7 @@ void register_allocation(CInstruction* oinsn)
     for(CInstruction* p = insn; p; p = p->next) {
         switch(p->insn) {
          case I_MOV:
-            if(stackcheck == 1 || stackcheck == 2) 
+            if(stackcheck == 1 || stackcheck == 2)
                 stackcheck++;
             else
                 stackcheck = -1;
@@ -578,6 +580,7 @@ void register_allocation(CInstruction* oinsn)
             break;
          default:
             stackcheck = 0;
+            break;
         }
         for(int i = 0; i < 3; i++)
             if(p->args[i])
@@ -608,7 +611,7 @@ void register_allocation(CInstruction* oinsn)
     for(int i = rAX; i <= rDI; i++)
         if(!regs_used[i])
             free_regs++;
-    
+
     if(!free_regs)
         return;
 

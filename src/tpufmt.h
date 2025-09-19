@@ -54,17 +54,17 @@ enum {
 
 /* Relocation Record:
     byte    Unit Nummer (Ziel)
-    byte    typ              
+    byte    typ
                bit 7-6
-	           00 = Code
-		   01 = CS Const
-		   10 = Var
-		   11 = DS Const
-	       bit 5-4
-	           00 = relativ
-		   01 = offset
-		   10 = segment
-		   11 = Zeiger
+                   00 = Code
+                   01 = CS Const
+                   10 = Var
+                   11 = DS Const
+               bit 5-4
+                   00 = relativ
+                   01 = offset
+                   10 = segment
+                   11 = Zeiger
     word    Blocknummer (Ziel)
     word    Offset (Ziel)
     word    Offset, an dem relo eingetragen wird
@@ -72,9 +72,9 @@ enum {
 
 enum {
     /* Blocknummern */
-    SYS_LONG_SQR = 0x50,        /* in: dx:ax=value  out: dx:ax=value^2 */
-    SYS_LONG_MUL = 0x28,        /* in: dx:ax=a, cx:bx=b  out: dx:ax=a*b */
-    SYS_LONG_DIV = 0x30,        /* in: dx:ax, cx:bx; out: quot/rem; clobbers si,di */
+    SYS_LONG_SQR = 0x50,        /* in: DX:AX=value  out: DX:AX=value^2 */
+    SYS_LONG_MUL = 0x28,        /* in: DX:AX=a, CX:BX=b  out: DX:AX=a*b */
+    SYS_LONG_DIV = 0x30,        /* in: DX:AX, CX:BX; out: quot/rem; clobbers si,di */
     SYS_SLOAD    = 0x58,        /* in: push dest, push src  out: src popped */
 
     /* Typen */
@@ -85,7 +85,7 @@ enum {
     ITYP_TYPE    = 81,
     ITYP_PROC    = 83,
     ITYP_UNIT    = 89,
-    
+
     /* Unit block format (blocks.pas, unit_block_rec) */
     UNIT_BLOCK_NAME = 2,         /* offset of name */
 
@@ -120,17 +120,17 @@ enum {
 
 /* Relocation Record:
     byte    Unit Nummer (Ziel)
-    byte    typ              
+    byte    typ
                bit 7-6
-	           00 = Code
-		   01 = CS Const
-		   10 = Var
-		   11 = DS Const
-	       bit 5-4
-	           00 = relativ
-		   01 = offset
-		   10 = segment
-		   11 = Zeiger
+                   00 = Code
+                   01 = CS Const
+                   10 = Var
+                   11 = DS Const
+               bit 5-4
+                   00 = relativ
+                   01 = offset
+                   10 = segment
+                   11 = Zeiger
     word    Blocknummer (Ziel)
     word    Offset (Ziel)
     word    Offset, an dem relo eingetragen wird
@@ -138,9 +138,9 @@ enum {
 
 enum {
     /* Blocknummern */
-    SYS_LONG_SQR = 1+0x50,      /* in: dx:ax=value  out: dx:ax=value^2 -- this one seems to no longer be in use. "+1" so it never matches */
-    SYS_LONG_MUL = 0x28,        /* in: dx:ax=a, cx:bx=b  out: dx:ax=a*b */
-    SYS_LONG_DIV = 0x30,        /* in: dx:ax, cx:bx; out: quot/rem; clobbers si,di */
+    SYS_LONG_SQR = 1+0x50,      /* in: DX:AX=value  out: DX:AX=value^2 -- this one seems to no longer be in use. "+1" so it never matches */
+    SYS_LONG_MUL = 0x28,        /* in: DX:AX=a, CX:BX=b  out: DX:AX=a*b */
+    SYS_LONG_DIV = 0x30,        /* in: DX:AX, CX:BX; out: quot/rem; clobbers si,di */
     SYS_SLOAD    = 0x58,        /* in: push dest, push src  out: src popped */
 
     /* Typen */

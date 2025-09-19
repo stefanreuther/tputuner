@@ -12,9 +12,11 @@ class CRelo;
 
 class CCodeWriter {
  public:
+    int extra_bytes;
     virtual void wb(char c) = 0;
     void write_word(int i);
     virtual void put_reloc(CRelo*) = 0;
+    void extra(int i) { extra_bytes+=i; }
     CCodeWriter() {}
     virtual ~CCodeWriter() {}
 };

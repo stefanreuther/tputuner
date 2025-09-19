@@ -14,17 +14,17 @@ using std::ostream;
 class CCodeWriter;
 
 typedef enum { rNONE,
-	       rAX, rCX, rDX, rBX, rSP, rBP, rSI, rDI,
-	       rAL, rCL, rDL, rBL, rAH, rCH, rDH, rBH,
-	       rES, rCS, rSS, rDS,
-	       rMAX } TRegister;
+               rAX, rCX, rDX, rBX, rSP, rBP, rSI, rDI,
+               rAL, rCL, rDL, rBL, rAH, rCH, rDH, rBH,
+               rES, rCS, rSS, rDS,
+               rMAX } TRegister;
 
-extern char reg_sizes[];
-extern char reg_values[];
+extern char reg_sizes[rMAX];
+extern char reg_values[rMAX];
 extern TRegister bases[8];
 extern TRegister index[8];
 extern TRegister def_seg[8];
-extern char* reg_names[];
+extern char* reg_names[rMAX];
 
 /*** Relozierung ***/
 struct CRelo {
@@ -45,13 +45,14 @@ public:
     TRegister reg;         /* REGISTER */
     TRegister memory[2];   /* MEMORY */
     int immediate;         /* MEMORY, IMMEDIATE */
+    int imm_size;          /* MEMORY, IMMEDIATE */
     CRelo* reloc;          /* MEMORY, IMMEDIATE */
     TRegister segment;     /* MEMORY */
     CInstruction* label;   /* LABEL */
-    
+
     CArgument(TRegister areg); /* REGISTER */
-    CArgument(TRegister base, TRegister index, int immed=0, CRelo* areloc=0, TRegister seg=rDS);
-    CArgument(int immed, CRelo* areloc=0);
+    CArgument(TRegister base, TRegister index, int immed=0, int size=0, CRelo* areloc=0, TRegister seg=rDS);
+    CArgument(int immed, int size, CRelo* areloc=0);
     CArgument(CInstruction* l);
     CArgument(const CArgument& arg);
     ~CArgument();
@@ -82,32 +83,44 @@ public:
 };
 
 typedef enum { I_INVALID,
-	       I_LABEL,
-	       I_MOV, I_LES, I_LDS, I_XCHG, I_LEA,
-	       
-	       I_POP, I_PUSH,
-	       
-	       I_DEC, I_INC,
-	       I_ADD, I_OR, I_ADC, I_SBB, I_AND, I_SUB, I_XOR, I_CMP,
-	       I_IMUL, I_MUL, I_DIV, I_IDIV,
-	       I_NOT, I_NEG,
+               I_LABEL,
+               I_MOV, I_LES, I_LDS, I_XCHG, I_LEA,
 
-	       I_JCC, I_CALLF, I_CALLN, I_JMPN, I_JMPF, I_RETN, I_RETF,
-	       I_JCXZ,
-	       
-	       I_CBW, I_CWD,
+               I_POP, I_PUSH, I_POPF, I_PUSHF, I_POPA, I_PUSHA,
 
-	       I_ROL, I_ROR, I_RCL, I_RCR, I_SHL, I_SHR, I_SAR,
-	       
-	       I_LEAVE, I_ENTER,
+               I_DEC, I_INC,
+               I_ADD, I_OR, I_ADC, I_SBB, I_AND, I_SUB, I_XOR, I_CMP, I_TEST,
+               I_IMUL, I_MUL, I_DIV, I_IDIV,
+               I_NOT, I_NEG,
+               I_BCD,
+
+               I_JCC, I_CALLF, I_CALLN, I_JMPN, I_JMPF, I_RETN, I_RETF,
+               I_JCXZ, I_LOOP,
+
+               I_CBW, I_CWD, I_XLAT,
+
+               I_ROL, I_ROR, I_RCL, I_RCR, I_SHL, I_SHR, I_SAR,
+
+               I_LEAVE, I_ENTER,
 
                I_FLAG, I_STRING,
 
-	       I_SETCC
+               I_IN, I_OUT,
+
+               I_SETCC, I_SETALC, I_LAHF, I_SAHF,
+
+               I_LOCK, I_HLT,
+
+               I_MAX
 } TInsn;
 
 /* opcodes for certain special insns */
 enum {
+    CODE_CMC   = 0xF5,
+    CODE_CLC   = 0xF8,
+    CODE_STC   = 0xF9,
+    CODE_CLI   = 0xFA,
+    CODE_STI   = 0xFB,
     CODE_CLD   = 0xFC,
     CODE_STD   = 0xFD,
     CODE_REP   = 0xF3,
@@ -121,26 +134,36 @@ enum {
     CODE_LODSB = 0xAC,
     CODE_LODSW = 0xAD,
     CODE_SCASB = 0xAE,
-    CODE_SCASW = 0xAF
+    CODE_SCASW = 0xAF,
+    CODE_INSB  = 0x6C,
+    CODE_INSW  = 0x6D,
+    CODE_OUTSB = 0x6E,
+    CODE_OUTSW = 0x6F,
+    CODE_DAA   = 0x27,
+    CODE_DAS   = 0x2F,
+    CODE_AAA   = 0x37,
+    CODE_AAS   = 0x3F,
+    CODE_AAM   = 0xD4,
+    CODE_AAD   = 0xD5
 };
 
-enum {		// condition codes
-	CC_O,	CC_NO,
-	CC_B,	CC_AE,
-	CC_E,	CC_NE,
-	CC_BE,	CC_A,
-	CC_S,	CC_NS,
-	CC_PE,	CC_PO,
-	CC_L,	CC_GE,
-	CC_LE,	CC_G
+enum {                // condition codes
+        CC_O,        CC_NO,
+        CC_B,        CC_AE,
+        CC_E,        CC_NE,
+        CC_BE,       CC_A,
+        CC_S,        CC_NS,
+        CC_PE,       CC_PO,
+        CC_L,        CC_GE,
+        CC_LE,       CC_G
 };
 
 enum {
-	IF_ABOVE = 1,
-	IF_BELOW = 2,
-	IF_EQUAL = 4,
-	IF_LESS  = 8,
-	IF_GREATER = 16,
+        IF_ABOVE = 1,
+        IF_BELOW = 2,
+        IF_EQUAL = 4,
+        IF_LESS  = 8,
+        IF_GREATER = 16,
         IF_OTHER = 32,
         IF_NONEQUAL
 };
@@ -155,16 +178,16 @@ public:
     CInstruction* prev; // nur für die Datenflußanalyse
     CArgument* args[3];
     int opsize;        // Label: 0=unsicher, 1=sicher
-    int param;         // optionaler Parameter (cc bei jcc-Sprüngen, Referenzzähler bei Labels
+    int param;         // optionaler Parameter (cc bei Jcc-Sprüngen, Referenzzähler bei Labels
     int ip;
     int temp;
-    
+
     CInstruction(TInsn which, CArgument* a1=0, CArgument* a2=0, CArgument* a3=0);
     ~CInstruction();
     CInstruction* set_os(int os) { opsize = os; return this; }
     CInstruction* set_param(int p) { param = p; return this; }
     CInstruction* set_ip(int p) { ip = p; return this; }
-    CInstruction* inc_ref() { param++; return this; }
+    CInstruction* inc_ref() { if (param==-1) param=0; param++; return this; }
     CInstruction* dec_ref() { param--; return this; }
     bool byte_insn();
 

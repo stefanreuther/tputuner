@@ -4,11 +4,15 @@
        =======================================================
 
 
+  (Note: The original documentation is in German. Additional notes
+  are in English.)
+
+
 Funktion
 ---------
 
   TPUTUNER optimiert eine Turbo Pascal Unit (.tpu), um bessere
-  Performance und vor allem auch geringere Codegröße zu erreichen. 
+  Performance und vor allem auch geringere Codegröße zu erreichen.
   Dazu wird die Unit disassembliert, optimiert, und wieder
   assembliert.
 
@@ -35,12 +39,10 @@ Aufruf
   -m, --sort-moves
   -c, --combine-strings
   -g, --cse
+  -f, --remove-unused-frames
        Legen die Art der Optimierung fest. Standardmäßig sind alle
-       Optionen bis auf -r, -c und -g eingeschaltet. Um eine Option
-       auszuschalten, verwenden Sie Großbuchstaben (also `-A')
-       bzw. bei der langen Option `--no-' (also `--no-early-jump').
-       Siehe auch die Beschreibung der einzelnen Optionen weiter
-       unten.
+       Optionen bis auf -r, -c und -g eingeschaltet. Siehe auch die
+       Beschreibung der einzelnen Optionen weiter unten. 
 
   -d, --debug-dump
        Aktiviert die Erzeugung von Debug-Dumps, siehe unten.
@@ -59,6 +61,39 @@ Aufruf
   -3, --386
        Erlaubt die Nutzung von 386-Befehlen. Standardmäßig liest und
        schreibt TPUTUNER 286er-Code.
+
+  -2, --286
+       Enables use of 286 instructions. By default, they are enabled.
+       Disable them for 8086 compatible code; may result in larger
+       code size. (Note: Actually, no 286 instructions are used, only
+       186 ones, but the Turbo Pascal documentation also calls them 286
+       code.)
+
+  --exclude [unit:][class.]function
+       Excludes the specified function from optimization. Class methods
+       must be qualified with the class name. To exclude the function
+       only from one unit, qualify it with the unit name, separated by
+       a colon. May be used multiple times on the command line.
+  
+  --format-debug
+       (Experimental) Enables additional formatting. Currently:
+       - Prints unit name.
+       - Displays (hexadecimal) immediate values in debug dumps with
+         exactly 2 (8 bits) or 4 (16 bits) digits, accordingly to their
+         original size, and "h" appended.
+
+  Options may be turned off by:
+  - appending a hyphen (e.g. `-a-' or `--early-jump-');
+  - starting with plus signs instead (e.g. `+a' or `++early-jump');
+  - (short options) specifying an uppercase letter (e.g. `-A');
+  - (long options) prepending `no-' (e.g. `--no-early-jump').
+
+  Options and function names may be read from a response file with
+  `@filename', to reduce command line length. Entries in a response file
+  are separated by any number of white spaces or end-of-lines. Lines
+  starting with a `#' are considered comments and skipped. If an option
+  is specified multiple times on the command line and/or response files,
+  its last occurrence takes precedence.
 
 
 Statusmeldungen
@@ -397,12 +432,27 @@ Optimierungen
   bringt nicht soooo viel.
 
 
+* Removal of unused stack frames (--removed-unused-frames)
+
+  Removes function prologs and epilogs, that set up and destroy stack
+  frames, if the stack frame (that is, register BP) is not used in the
+  function code.
+
+  enter x,y                  push bp
+  [...]                      mov bp,sp
+  leave                      sub sp,x (only if x > 0)
+  (ret)                      [...]
+                             mov sp,bp
+                             pop bp
+                             (ret)
+
+
 * Nutzung von 386er-Befehlen (--386)
 
   Erzeugt 386er-Befehle:
   + jcc j16
   + setcc r/m8
-  + push i32, push m32
+  + push i32/m32
   + mov r/m32, i32
 
   Die 32-bit-Befehle tauchen in den Debuglistings nicht auf, sie
@@ -412,6 +462,55 @@ Optimierungen
   entspricht einem `push(4) [es:di+ffffffe8]'.
 
   TPUTUNER kann so bearbeitete Units nicht wieder einlesen!
+
+
+* Use of 286 instructions (--286)
+
+  Enables output of 286 (actually, 186) instructions:
+  + bound r16, m16
+  + enter i16, i8
+  + imul r16[, r16/m16], i8/i16
+  + insb/insw
+  + leave
+  + outsb/outsw
+  + push i8/i16
+  + rcl/rcr/rol/ror/sar/shl/shr r8/r16/m8/m16, i8
+
+  When enabled, certain sequences of 8086 instructions are substituted
+  with an equivalent 286 instruction. When disabled, some 286 instructions
+  are substituted with equivalent 8086 code, some result in errors.
+
+    286 code                        8086 code
+
+    bound reg1, mem2                error
+
+    enter imm1, imm2                (error, if imm2 > 0)
+                                    push bp
+                                    mov bp, sp
+                                    sub sp, imm1 (only if imm1 > 0)
+                                    (shorter if imm1 = imm2 = 0)
+
+    imul reg1[, rm2], imm3          error
+
+    insb/insw                       error
+
+    leave                           mov sp, bp
+                                    pop bp
+
+    outsb/outsw                     error
+
+    push imm1                       error
+
+    shift rm1, imm2                 shift rm1, 1
+                                    [...]        (imm2 times)
+                                    shift rm1, 1
+
+  Substitutions may result in the output code becoming larger than the
+  input. However, such increases in code size will not result in "new code
+  got bigger" error messages.
+
+  Even when disabled in the output, 286 instructions are always recognized
+  in the input.
 
 
 * Was TPUTUNER nicht tut...
@@ -500,9 +599,9 @@ Debuglistings
 --------------
 
   Die Debuglistings (--debug-dump) haben die Dateinamen
-  `blockX.passY' (`blockX.pY' unter DOS), wobei X die Blocknummer (hex)
-  und Y die Pass-Nummer (dez) ist. Es werden nur die Optimizer-Passes
-  protokolliert, nicht die Reassembler-Passes, da letztere effektiv
+  `blockXXX.passY' (`blockXXX.pY' unter DOS), wobei XXX die Blocknummer
+  (hex) und Y die Pass-Nummer (dez) ist. Es werden nur die Optimizer-
+  Passes protokolliert, nicht die Reassembler-Passes, da letztere effektiv
   nichts ändern.
 
   Das Format der Dumps ist ungefähr so:
