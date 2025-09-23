@@ -638,7 +638,7 @@ CInstruction* optimize_mov(CInstruction* insn)
 		    break;
 		}
 	    }
-	    if(j==-1 && insn->prev) {
+	    if(j==-1) {
 		/* schade, haben wir nicht */
 		values[reg].set_mem(insn, insn->args[1]);
 		use_mem(insn->args[1]);
@@ -1074,8 +1074,9 @@ CInstruction* optimize_arit(CInstruction* insn)
              *  ... welchen der Optimizer kickt, falls nicht
              *  benötigt
              */
-            if(insn->insn != I_ADC && insn->insn != I_SBB && insn->insn != I_ADD) {
+            if(insn->insn != I_ADC && insn->insn != I_SBB && !(insn->insn == I_OR && insn->args[0]->reg == insn->args[1]->reg)) {
                 /* add, sub, or, xor, cmp */
+                insn->insn = I_OR;
                 delete insn->args[1];
                 insn->args[1] = new CArgument(*insn->args[0]);
                 changed = true;

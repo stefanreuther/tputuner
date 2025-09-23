@@ -397,8 +397,8 @@ void early_jumps(CInstruction* insn)
                && here->args[0] && here->args[1]
                && there->args[0] && there->args[1]
                && *(here->args[0]) == *(there->args[0])
-               && (here->insn != I_IMUL || here->args[3]==0)
-               && (there->insn != I_IMUL || there->args[3]==0)
+               && (here->insn != I_IMUL || here->args[2]==0)
+               && (there->insn != I_IMUL || there->args[2]==0)
                && here->args[1]->type == CArgument::IMMEDIATE
                && (there->args[1]->is_word_reg() || there->args[1]->is_byte_reg())) {
                 /* match */
