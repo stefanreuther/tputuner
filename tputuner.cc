@@ -4,14 +4,14 @@
  *  (c) copyright 1998,1999,2000,2002 by Stefan Reuther
  *
  *  Hauptmodul. Hier wird die Unit geladen, die Code-, Entry- und
- *  Relocation-Eintr‰ge geladen und zugeordnet, und schlieﬂlich
+ *  Relocation-Eintr√§ge geladen und zugeordnet, und schlie√ülich
  *  die Optimierung gestartet.
  */
 #include <cstdio>
 #include <iostream>
 #include <list>
 #include <string>
-#include <cstring>       /* f¸r Parameterparsing... */
+#include <cstring>       /* f√ºr Parameterparsing... */
 #include <cstdlib>
 #include "tpufmt.h"
 #include "optimize.h"
@@ -21,10 +21,10 @@
 using std::exit;
 
 char* unit;        // Original-Unit
-int unit_size;     // Originalgrˆﬂe
+int unit_size;     // Originalgr√∂√üe
 
 char* new_unit;    // Neue Unit
-int new_size;      // Neue Grˆﬂe
+int new_size;      // Neue Gr√∂√üe
 
 int ofs_this_unit = 0; // Offset, unter dem diese Unit referenziert wird
 int ref_this_unit = 0;
@@ -79,14 +79,14 @@ CCodeBlock::CCodeBlock(int aofs, int& code_base, int& relo_base, int aid)
     relo_base += relo_count * 8;
 }
 
-// `Entry-Block p mˆchte Code aus diesem Codeblock'
+// `Entry-Block p m√∂chte Code aus diesem Codeblock'
 void CCodeBlock::SetEntryBlock(CEntryBlock* p)
 {
     if(status==UNUSED) {
         status=OK;
-	entry=p;
+        entry=p;
     } else
-	status=MULTI_ENTRY;
+        status=MULTI_ENTRY;
 }
 
 void showc(unsigned char c)
@@ -95,90 +95,90 @@ void showc(unsigned char c)
     else cout << "{" << (int)c << "}";
 }
 
-// Relozierung an Offset ofs ¸berpr¸fen
+// Relozierung an Offset ofs √ºberpr√ºfen
 bool CCodeBlock::check_relo(int ofs)
 {
     switch((unsigned char)(unit[ofs+1] & 0xC0)) {
     case 0x40:
-	/* CS const: darf nicht in den Code zeigen, da sich der
-	 * Offset w‰hrend der Optimierung ‰ndern wird */
-	if(get_word(ofs+4) >= entry->entry_ofs)
-	    return false;
-	break;
-// verlassen wir uns lieber drauf, daﬂ TP solche Records nie erzeugt.
-// sonst w¸rden auch OK'ne Blˆcke zur¸ckgewiesen.
+        /* CS const: darf nicht in den Code zeigen, da sich der
+         * Offset w√§hrend der Optimierung √§ndern wird */
+        if(get_word(ofs+4) >= entry->entry_ofs)
+            return false;
+        break;
+// verlassen wir uns lieber drauf, da√ü TP solche Records nie erzeugt.
+// sonst w√ºrden auch OK'ne Bl√∂cke zur√ºckgewiesen.
 //    case 0x00:
-//	/* Code: darf nicht auf den Codeblock selbst zeigen (und damit
-//	 * u.U. in den Code hinein) */
-//	if(get_word(ofs+2) == id) /* relo zeigt in diesen Block */
-//	    return false;
-//	break;
+//      /* Code: darf nicht auf den Codeblock selbst zeigen (und damit
+//       * u.U. in den Code hinein) */
+//      if(get_word(ofs+2) == id) /* relo zeigt in diesen Block */
+//          return false;
+//      break;
     }
     /* Relozierung darf nicht im CS-Const-Bereich liegen. TP erzeugt */
     /* meines Wissens keine solchen Relozierungen, aber ... */
     if(get_word(ofs+6) < entry->entry_ofs) return false;
-    
+
     return true;
 }
 
 
 void CCodeBlock::optimize()
 {
-    /* Pr¸fe Relozierungen */
+    /* Pr√ºfe Relozierungen */
     for(int i=0; i<relo_count; i++) {
-	if(!check_relo(relo_ofs + 8*i)) {
-	    cout << "Error: bad relocation entries (no. #" << i << ") -- skipping"
-		 << endl;
-	    return;
-	}
+        if(!check_relo(relo_ofs + 8*i)) {
+            cout << "Error: bad relocation entries (no. #" << i << ") -- skipping"
+                 << endl;
+            return;
+        }
     }
 
     /* Optimieren */
     try {
-	new_code = do_optimize(id,
-			       unit + code_ofs /*+ entry->entry_ofs*/, code_size - entry->entry_ofs,
-			       entry->entry_ofs,
-			       unit + relo_ofs, relo_count);
+        new_code = do_optimize(id,
+                               unit + code_ofs /*+ entry->entry_ofs*/, code_size - entry->entry_ofs,
+                               entry->entry_ofs,
+                               unit + relo_ofs, relo_count);
 
-	if(new_code) {
-	    /* Optimierung OK: Code und CS-Consts verbinden */
-	    char* c = new char[new_code->code_size + entry->entry_ofs];
-	    char* p = c;
-	    for(int i=0; i<entry->entry_ofs; i++) // CS Consts
-		*p++ = unit[code_ofs + i];
-	    for(int i=0; i<new_code->code_size; i++) // Neuer Code
-		*p++ = new_code->code[i];
-	    delete[] new_code->code;
-	    new_code->code = c;
-	    new_code->code_size += entry->entry_ofs;
-	}
+        if(new_code) {
+            /* Optimierung OK: Code und CS-Consts verbinden */
+            char* c = new char[new_code->code_size + entry->entry_ofs];
+            char* p = c;
+            for(int i=0; i<entry->entry_ofs; i++) // CS Consts
+                *p++ = unit[code_ofs + i];
+            for(int i=0; i<new_code->code_size; i++) // Neuer Code
+                *p++ = new_code->code[i];
+            delete[] new_code->code;
+            new_code->code = c;
+            new_code->code_size += entry->entry_ofs;
+        }
     }
     catch(string& s) {
-	/* Fehler werfen strings */
-	cout << s << endl;
-	new_code = 0;
+        /* Fehler werfen strings */
+        cout << s << endl;
+        new_code = 0;
     }
 }
 
 //
-// L‰dt die durch filename angegebene Datei
+// L√§dt die durch filename angegebene Datei
 //
 bool load_unit(char* filename)
 {
     FILE* fp = fopen(filename,"rb");
     if(!fp) {
-	cerr << "Error: could not open file " << filename << endl;
-	return false;
+        cerr << "Error: could not open file " << filename << endl;
+        return false;
     }
 
     if(fseek(fp, 0, SEEK_END) != 0) {
-	cerr << "Error: file seems not to be seekable" << endl;
-	return false;
+        cerr << "Error: file seems not to be seekable" << endl;
+        return false;
     }
     unit_size = ftell(fp);
     if(unit_size<0) {
-	cerr << "Error: file seems not to be seekable" << endl;
-	return false;
+        cerr << "Error: file seems not to be seekable" << endl;
+        return false;
     }
 
     unit = new char[unit_size];
@@ -187,9 +187,9 @@ bool load_unit(char* filename)
     fclose(fp);
 
     if(strncmp(unit, UNIT_ID, 9) != 0) {
-	cout << "Error: not a `" UNIT_ID "' file" << endl;
-	delete[] unit;
-	return false;
+        cout << "Error: not a `" UNIT_ID "' file" << endl;
+        delete[] unit;
+        return false;
     }
 
     ref_this_unit = ofs_this_unit = get_word(OFS_THIS_UNIT) + 2;
@@ -200,7 +200,7 @@ bool load_unit(char* filename)
     }
 
     ofs_this_unit = ofs_this_unit + 2 + unit[ofs_this_unit+1];
-    
+
     return true;
 }
 
@@ -254,7 +254,7 @@ void read_hash_branch(int ofs, string prefix)
             }
             break;
         }
-        
+
         ofs = get_word(ofs);
     }
 }
@@ -300,9 +300,9 @@ void create_objects()
 
     int id = 0;
     while(codeblock_ofs < codeblock_limit) {
-	code_list.push_back(new CCodeBlock(codeblock_ofs, code_base, relo_base, id));
-	codeblock_ofs += 8;
-	id += 8;
+        code_list.push_back(new CCodeBlock(codeblock_ofs, code_base, relo_base, id));
+        codeblock_ofs += 8;
+        id += 8;
     }
     cout << "Number of Code blocks = " << id/8 << endl;
 
@@ -311,16 +311,16 @@ void create_objects()
     int entry_limit = get_word(OFS_CODE_BLOCKS);
 
     while(entry_base < entry_limit) {
-	list<CCodeBlock*>::iterator i;
-	i = code_list.begin();
-	while(i!=code_list.end()) {
-	    if((*i)->id == get_word(entry_base+4)) {
-		entry_list.push_back(new CEntryBlock(entry_base, *i));
-		break;
-	    }
-	    i++;
-	}
-	entry_base += 8;
+        list<CCodeBlock*>::iterator i;
+        i = code_list.begin();
+        while(i!=code_list.end()) {
+            if((*i)->id == get_word(entry_base+4)) {
+                entry_list.push_back(new CEntryBlock(entry_base, *i));
+                break;
+            }
+            i++;
+        }
+        entry_base += 8;
     }
 }
 
@@ -329,26 +329,26 @@ void create_objects()
  */
 void write_new_file(char* name)
 {
-    int code_size = 0;                              // Gesamtgrˆﬂe Code
+    int code_size = 0;                              // Gesamtgr√∂√üe Code
     int codeblock_base = get_word(OFS_CODE_BLOCKS); // Position der Codeblocks
     list<CCodeBlock*>::iterator i;
 
-    /* Grˆﬂe der neuen Unit berechnen */
-    /* unver‰nderte Teile */
+    /* Gr√∂√üe der neuen Unit berechnen */
+    /* unver√§nderte Teile */
     new_size = roundup(get_word(SYM_SIZE))
-	+ roundup(get_word(CONST_SIZE))
-	+ roundup(get_word(CONST_RELOC_SIZE))
+        + roundup(get_word(CONST_SIZE))
+        + roundup(get_word(CONST_RELOC_SIZE))
         + browser_size();
     /* Code */
     for(i = code_list.begin(); i!=code_list.end(); i++) {
-	if((**i).new_code) new_size += (**i).new_code->code_size;
-	else new_size += (**i).code_size;
+        if((**i).new_code) new_size += (**i).new_code->code_size;
+        else new_size += (**i).code_size;
     }
     new_size = roundup(new_size);
     /* Relos */
     for(i = code_list.begin(); i!=code_list.end(); i++) {
-	if((**i).new_code) new_size += (**i).new_code->relo_size;
-	else new_size += (**i).relo_count*8;
+        if((**i).new_code) new_size += (**i).new_code->relo_size;
+        else new_size += (**i).relo_count*8;
     }
     new_size = roundup(new_size);
     new_unit = new char[new_size];
@@ -358,73 +358,73 @@ void write_new_file(char* name)
     /* Neue Unit erstellen*/
     /* Header */
     for(int m=roundup(get_word(SYM_SIZE))+browser_size(); m>0; m--)
-	*code_ptr++ = *u_ptr++;
+        *code_ptr++ = *u_ptr++;
 
     /* Code */
     for(i=code_list.begin(); i!=code_list.end(); i++) {
-	char* this_code;
-	int this_len;
-	if((**i).new_code) {
-	    this_code = (**i).new_code->code;
-	    this_len  = (**i).new_code->code_size;
-	} else {
-	    this_code = unit + (**i).code_ofs;
-	    this_len  = (**i).code_size;
-	}
-	code_size += this_len;
-	for(int j=0; j<this_len; j++)
-	    *code_ptr++ = *this_code++;
-	
-	put_word(codeblock_base + (**i).id + 2, this_len);
+        char* this_code;
+        int this_len;
+        if((**i).new_code) {
+            this_code = (**i).new_code->code;
+            this_len  = (**i).new_code->code_size;
+        } else {
+            this_code = unit + (**i).code_ofs;
+            this_len  = (**i).code_size;
+        }
+        code_size += this_len;
+        for(int j=0; j<this_len; j++)
+            *code_ptr++ = *this_code++;
+
+        put_word(codeblock_base + (**i).id + 2, this_len);
     }
 
     int cs = code_size;  // Code aufrunden
     while(cs & 15) {
-	*code_ptr++ = 0;
-	cs++;
+        *code_ptr++ = 0;
+        cs++;
     }
 
     /* nun die CONST blocks verschieben */
     char* const_ptr = unit + roundup(get_word(SYM_SIZE))
-	                   + roundup(get_word(CODE_SIZE))
+                           + roundup(get_word(CODE_SIZE))
                            + browser_size();
 
     for(int j=roundup(get_word(CONST_SIZE)); j>0; j--)
-	*code_ptr++ = *const_ptr++;
+        *code_ptr++ = *const_ptr++;
 
     /* die Relos erzeugen */
     int relo_size = 0;
     for(i=code_list.begin(); i!=code_list.end(); i++) {
-	char* this_relo;
-	int this_len;
-	if((**i).new_code) {
-	    this_relo = (**i).new_code->relos;
-	    this_len  = (**i).new_code->relo_size;
-	} else {
-	    this_relo = unit + (**i).relo_ofs;
-	    this_len  = (**i).relo_count * 8;
-	}
-	relo_size += this_len;
-	for(int j=0; j<this_len; j++)
-	    *code_ptr++ = *this_relo++;
-	
-	put_word(codeblock_base + (**i).id + 4, this_len);
+        char* this_relo;
+        int this_len;
+        if((**i).new_code) {
+            this_relo = (**i).new_code->relos;
+            this_len  = (**i).new_code->relo_size;
+        } else {
+            this_relo = unit + (**i).relo_ofs;
+            this_len  = (**i).relo_count * 8;
+        }
+        relo_size += this_len;
+        for(int j=0; j<this_len; j++)
+            *code_ptr++ = *this_relo++;
+
+        put_word(codeblock_base + (**i).id + 4, this_len);
     }
     cs = relo_size;     // aufrunden
     while(cs & 15) {
-	*code_ptr++ = 0;
-	cs++;
+        *code_ptr++ = 0;
+        cs++;
     }
 
     /* die CONST relos kopieren */
     const_ptr = unit + roundup(get_word(SYM_SIZE))
-	             + roundup(get_word(CODE_SIZE))
-	             + roundup(get_word(CONST_SIZE))
-	             + roundup(get_word(RELOC_SIZE))
+                     + roundup(get_word(CODE_SIZE))
+                     + roundup(get_word(CONST_SIZE))
+                     + roundup(get_word(RELOC_SIZE))
                      + browser_size();
 
     for(int ii=roundup(get_word(CONST_RELOC_SIZE)); ii>0; ii--)
-	*code_ptr++ = *const_ptr++;
+        *code_ptr++ = *const_ptr++;
 
     /* und die Daten in den Header eintragen */
     put_word(CODE_SIZE, code_size);
@@ -432,14 +432,14 @@ void write_new_file(char* name)
 
     int n_size = code_ptr - new_unit;
     int n_size_1 = roundup(nget_word(SYM_SIZE))
-	+ roundup(nget_word(CODE_SIZE)) + roundup(nget_word(CONST_SIZE))
-	+ roundup(nget_word(RELOC_SIZE)) + roundup(nget_word(CONST_RELOC_SIZE))
+        + roundup(nget_word(CODE_SIZE)) + roundup(nget_word(CONST_SIZE))
+        + roundup(nget_word(RELOC_SIZE)) + roundup(nget_word(CONST_RELOC_SIZE))
         + browser_size();
 
     if(new_size != n_size) {
-	cout << "Size mismatch error #1!" << endl;
-	cout << "newsize = " << new_size << "  versus " << n_size << endl;
-	return;
+        cout << "Size mismatch error #1!" << endl;
+        cout << "newsize = " << new_size << "  versus " << n_size << endl;
+        return;
     }
     cout << "Length according to pointers: " << n_size << endl;
     cout << "Length according to header:   " << n_size_1 << "  (Code: " << code_size << ")" << endl;
@@ -447,27 +447,27 @@ void write_new_file(char* name)
     if (browser_size())
         cout << "NOTE: " << browser_size() << " bytes of browser information present\n";
     if(n_size != n_size_1) {
-	cout << "Size mismatch error!" << endl;
-	return;
+        cout << "Size mismatch error!" << endl;
+        return;
     }
     if(n_size > unit_size) {
-	cout << "New code got *bigger*!" << endl;
-	return;
+        cout << "New code got *bigger*!" << endl;
+        return;
     }
     cout << "Saved:                        " << unit_size - new_size
-	 << "  (Code: " << get_word(CODE_SIZE) - code_size << ")" << endl;
+         << "  (Code: " << get_word(CODE_SIZE) - code_size << ")" << endl;
 
     /* alles OK -> rausschreiben */
     FILE* fp = fopen(name, "wb");
     if(!fp) {
-	cout << "Could not create output file." << endl;
-	return;
+        cout << "Could not create output file." << endl;
+        return;
     }
     fwrite(new_unit, 1, new_size, fp);
     fclose(fp);
 }
 
-/* Strukturen f¸r Options-Parser */
+/* Strukturen f√ºr Options-Parser */
 struct TOption {
     char letter;
     const char* long_name;
@@ -497,20 +497,20 @@ TOption options[] = {
 void help()
 {
     cout << "Stefan's TPU Tuner - (c) copyright 1998,1999,2000,2002 by Stefan Reuther" << endl
-	 << endl
-	 << "Usage: tputuner [-options] file.in [file.out]" << endl
-	 << endl
-	 << "file.in is a TPU file (version " << UNIT_FORMAT << ", \"" UNIT_ID "\")" << endl
+         << endl
+         << "Usage: tputuner [-options] file.in [file.out]" << endl
+         << endl
+         << "file.in is a TPU file (version " << UNIT_FORMAT << ", \"" UNIT_ID "\")" << endl
          << "file.out is the output file name (if different from file.in)" << endl
-	 << endl
-	 << "Options specify which optimizations to perform. Use an upper-case letter" << endl
-	 << "(short options) or add `no-' (long options) to turn them off." << endl
-	 << endl;
+         << endl
+         << "Options specify which optimizations to perform. Use an upper-case letter" << endl
+         << "(short options) or add `no-' (long options) to turn them off." << endl
+         << endl;
     for(TOption* p = options; p->letter!=0; p++) {
-	cout << "-" << p->letter << "   --" << p->long_name;
-	for(int i=strlen(p->long_name); i<25; i++) cout << " ";
-	if(*(p->variable)) cout << "[on] "; else cout << "[off]";
-	cout << "  " << p->desc << endl;
+        cout << "-" << p->letter << "   --" << p->long_name;
+        for(int i=strlen(p->long_name); i<25; i++) cout << " ";
+        if(*(p->variable)) cout << "[on] "; else cout << "[off]";
+        cout << "  " << p->desc << endl;
     }
     exit(0);
 }
@@ -523,21 +523,21 @@ void handle_long_option(char* p)
 {
     bool positive = true;
     if(p[0]=='n' && p[1]=='o' && p[2]=='-') {
-	positive = false;
-	p += 3;
+        positive = false;
+        p += 3;
     }
     if(strcmp(p, "help")==0) {
-	if(!positive) {
-	    cerr << "What do you mean with `no help'?" << endl;
-	    exit(1);
-	}
-	help();
+        if(!positive) {
+            cerr << "What do you mean with `no help'?" << endl;
+            exit(1);
+        }
+        help();
     }
     for(TOption* q = options; q->letter!=0; q++)
-	if(strcmp(p, q->long_name)==0) {
-	    *(q->variable) = positive;
-	    return;
-	}
+        if(strcmp(p, q->long_name)==0) {
+            *(q->variable) = positive;
+            return;
+        }
     cerr << "tputuner: Invalid option: --" << p << endl;
     exit(1);
 }
@@ -548,14 +548,14 @@ void handle_long_option(char* p)
 void handle_short_option(char c)
 {
     for(TOption* q = options; q->letter!=0; q++) {
-	if(q->letter == c) {
-	    *(q->variable) = true;
-	    return;
-	}
-	if(toupper(q->letter) == c) {
-	    *(q->variable) = false;
-	    return;
-	}
+        if(q->letter == c) {
+            *(q->variable) = true;
+            return;
+        }
+        if(toupper(q->letter) == c) {
+            *(q->variable) = false;
+            return;
+        }
     }
     cerr << "tputuner: Invalid option: -";
     if(c) cerr << c;
@@ -570,29 +570,29 @@ int main(int argc, char* argv[])
 
     /* Options-Parser */
     for(int i = 1; i<argc; i++) {
-	if(argv[i][0] == '-') {
-	    char* p = argv[i]+1;
-	    if(*p == '-') {
-		/* long option */
-		handle_long_option(p+1);
-	    } else {
-		/* short option */
-		do handle_short_option(*p++); while(*p);
-	    }
-	} else {
-	    if(infile==0) infile=argv[i];
-	    else if(outfile==0) outfile=argv[i];
-	    else {
-		cerr << "tputuner: too many file names specified" << endl;
-		exit(1);
-	    }
-	}
+        if(argv[i][0] == '-') {
+            char* p = argv[i]+1;
+            if(*p == '-') {
+                /* long option */
+                handle_long_option(p+1);
+            } else {
+                /* short option */
+                do handle_short_option(*p++); while(*p);
+            }
+        } else {
+            if(infile==0) infile=argv[i];
+            else if(outfile==0) outfile=argv[i];
+            else {
+                cerr << "tputuner: too many file names specified" << endl;
+                exit(1);
+            }
+        }
     }
 
     if(!infile) {
-	cerr << "tputuner: You did not specify a file name" << endl
-	     << "Type `tputuner --help' for help." << endl;
-	exit(1);
+        cerr << "tputuner: You did not specify a file name" << endl
+             << "Type `tputuner --help' for help." << endl;
+        exit(1);
     }
     if(!outfile) outfile=infile;
 
@@ -612,7 +612,7 @@ int main(int argc, char* argv[])
     /* und action! */
     cout << "loading unit..." << endl;
     if(!load_unit(infile)) return 1;
-    
+
     cout << "analyzing headers..." << endl;
     create_objects();
     if(do_names) read_hashtable(get_word(OFS_FULL_HASH), "");
@@ -621,8 +621,8 @@ int main(int argc, char* argv[])
     cout << "optimizing..." << endl;
     for(list<CCodeBlock*>::iterator i=code_list.begin(); i!=code_list.end(); i++)
     {
-	if((*i)->status == CCodeBlock::OK) {
-            /* nicht mehr nˆtig, da calls stackframe-removal ausschalten */
+        if((*i)->status == CCodeBlock::OK) {
+            /* nicht mehr n√∂tig, da calls stackframe-removal ausschalten */
 /*            if((*i)->entry->flags & (INTERRUPT_PROC + CTOR_PROC + DTOR_PROC))
                   can_remove_stackframe = false;
               else
@@ -630,10 +630,10 @@ int main(int argc, char* argv[])
             if((*i)->entry->name.length()) {
                 cout << "Function " << (*i)->entry->name << ":" << endl;
             }
-	    cout << "- code block #" << hex << (*i)->id << dec
+            cout << "- code block #" << hex << (*i)->id << dec
                  << "... " << flush;
-	    (*i)->optimize();
-	}
+            (*i)->optimize();
+        }
     }
 
     if(do_string_comb) {

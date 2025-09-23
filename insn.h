@@ -1,5 +1,5 @@
 /*
- *  Verwaltung von Assembler-Befehlen für tputuner
+ *  Verwaltung von Assembler-Befehlen fÃ¼r tputuner
  *
  *  (c) copyright 1998 by Stefan Reuther
  */
@@ -14,10 +14,10 @@ using namespace std;
 class CCodeWriter;
 
 typedef enum { rNONE,
-	       rAX, rCX, rDX, rBX, rSP, rBP, rSI, rDI,
-	       rAL, rCL, rDL, rBL, rAH, rCH, rDH, rBH,
-	       rES, rCS, rSS, rDS,
-	       rMAX } TRegister;
+               rAX, rCX, rDX, rBX, rSP, rBP, rSI, rDI,
+               rAL, rCL, rDL, rBL, rAH, rCH, rDH, rBH,
+               rES, rCS, rSS, rDS,
+               rMAX } TRegister;
 
 extern char reg_sizes[];
 extern char reg_values[];
@@ -50,7 +50,7 @@ public:
     CRelo* reloc;          /* MEMORY, IMMEDIATE */
     TRegister segment;     /* MEMORY */
     CInstruction* label;   /* LABEL */
-    
+
     CArgument(TRegister areg); /* REGISTER */
     CArgument(TRegister base, TRegister index, int immed=0, CRelo* areloc=0, TRegister seg=rDS);
     CArgument(int immed, CRelo* areloc=0);
@@ -86,28 +86,28 @@ public:
 };
 
 typedef enum { I_INVALID,
-	       I_LABEL,
-	       I_MOV, I_LES, I_LDS, I_XCHG, I_LEA,
-	       
-	       I_POP, I_PUSH,
-	       
-	       I_DEC, I_INC,
-	       I_ADD, I_OR, I_ADC, I_SBB, I_AND, I_SUB, I_XOR, I_CMP,
-	       I_IMUL, I_MUL, I_DIV, I_IDIV,
-	       I_NOT, I_NEG,
+               I_LABEL,
+               I_MOV, I_LES, I_LDS, I_XCHG, I_LEA,
 
-	       I_JCC, I_CALLF, I_CALLN, I_JMPN, I_JMPF, I_RETN, I_RETF,
-	       I_JCXZ,
-	       
-	       I_CBW, I_CWD,
+               I_POP, I_PUSH,
 
-	       I_ROL, I_ROR, I_RCL, I_RCR, I_SHL, I_SHR, I_SAR,
-	       
-	       I_LEAVE, I_ENTER,
+               I_DEC, I_INC,
+               I_ADD, I_OR, I_ADC, I_SBB, I_AND, I_SUB, I_XOR, I_CMP,
+               I_IMUL, I_MUL, I_DIV, I_IDIV,
+               I_NOT, I_NEG,
+
+               I_JCC, I_CALLF, I_CALLN, I_JMPN, I_JMPF, I_RETN, I_RETF,
+               I_JCXZ,
+
+               I_CBW, I_CWD,
+
+               I_ROL, I_ROR, I_RCL, I_RCR, I_SHL, I_SHR, I_SAR,
+
+               I_LEAVE, I_ENTER,
 
                I_FLAG, I_STRING,
 
-	       I_SETCC
+               I_SETCC
 } TInsn;
 
 /* opcodes for certain special insns */
@@ -128,23 +128,23 @@ enum {
     CODE_SCASW = 0xAF
 };
 
-enum {		// condition codes
-	CC_O,	CC_NO,
-	CC_B,	CC_AE,
-	CC_E,	CC_NE,
-	CC_BE,	CC_A,
-	CC_S,	CC_NS,
-	CC_PE,	CC_PO,
-	CC_L,	CC_GE,
-	CC_LE,	CC_G
+enum {          // condition codes
+        CC_O,   CC_NO,
+        CC_B,   CC_AE,
+        CC_E,   CC_NE,
+        CC_BE,  CC_A,
+        CC_S,   CC_NS,
+        CC_PE,  CC_PO,
+        CC_L,   CC_GE,
+        CC_LE,  CC_G
 };
 
 enum {
-	IF_ABOVE = 1,
-	IF_BELOW = 2,
-	IF_EQUAL = 4,
-	IF_LESS  = 8,
-	IF_GREATER = 16,
+        IF_ABOVE = 1,
+        IF_BELOW = 2,
+        IF_EQUAL = 4,
+        IF_LESS  = 8,
+        IF_GREATER = 16,
         IF_OTHER = 32,
         IF_NONEQUAL
 };
@@ -156,13 +156,13 @@ class CInstruction {
 public:
     TInsn insn;
     CInstruction* next;
-    CInstruction* prev; // nur für die Datenflußanalyse
+    CInstruction* prev; // nur fÃ¼r die DatenfluÃŸanalyse
     CArgument* args[3];
     int opsize;        // Label: 0=unsicher, 1=sicher
-    int param;         // optionaler Parameter (cc bei jcc-Sprüngen, Referenzzähler bei Labels
+    int param;         // optionaler Parameter (cc bei jcc-SprÃ¼ngen, ReferenzzÃ¤hler bei Labels
     int ip;
     int temp;
-    
+
     CInstruction(TInsn which, CArgument* a1=0, CArgument* a2=0, CArgument* a3=0);
     ~CInstruction();
     CInstruction* set_os(int os) { opsize = os; return this; }

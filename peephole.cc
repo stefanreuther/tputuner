@@ -1,22 +1,22 @@
 /*
- *  Peephole-Optimierung f¸r tputuner
+ *  Peephole-Optimierung f√ºr tputuner
  *
  *  (c) copyright 1998,1999,2000 by Stefan Reuther
  *
- *  Ruft jede der Funktionen aus /functions/ f¸r jede Anweisung
- *  einzeln auf. R¸ckgabe ist
+ *  Ruft jede der Funktionen aus /functions/ f√ºr jede Anweisung
+ *  einzeln auf. R√ºckgabe ist
  *  - A_BAD      Funktion kann mit Anweisung nichts anfangen
- *  - A_CONTINUE (nicht f¸r Optimizer-Funktionen)
- *  - A_DELETE   Anweisung kann gelˆscht werden
+ *  - A_CONTINUE (nicht f√ºr Optimizer-Funktionen)
+ *  - A_DELETE   Anweisung kann gel√∂scht werden
  *  - A_RESCAN   Anweisung wurde optimiert, noch mal bewerten
  */
 #include "insn.h"
 #include "peephole.h"
-#include "dfa.h" /* f¸r flag_check() */
+#include "dfa.h" /* f√ºr flag_check() */
 #include "optimize.h"
 #include "global.h"
 #include "tpufmt.h"
-#include "cse.h" /* f¸r compute_insn_dep() */
+#include "cse.h" /* f√ºr compute_insn_dep() */
 
 #define ALL_SET(x,y) (((x) & (y)) == (y))
 
@@ -24,10 +24,10 @@ extern int sys_unit_offset;     // in tputuner.cc
 extern int ref_this_unit;       // in tputuner.cc
 
 typedef enum {
-    A_BAD,         // Funktion paﬂt nicht auf insn
-    A_CONTINUE,    // keine ƒnderung, trotzdem weitermachen
-    A_DELETE,      // Befehl lˆschen
-    A_RESCAN       // ge‰ndert, nochmal bewerten
+    A_BAD,         // Funktion pa√üt nicht auf insn
+    A_CONTINUE,    // keine √Ñnderung, trotzdem weitermachen
+    A_DELETE,      // Befehl l√∂schen
+    A_RESCAN       // ge√§ndert, nochmal bewerten
 } TAction;
 
 /* Sprung Charakteristika */
@@ -59,7 +59,7 @@ int jmp_for_char (int ch)
 }
 
 /*
- *  Pr¸ft Nullbefehle
+ *  Pr√ºft Nullbefehle
  */
 TAction check_nop(CInstruction* p)
 {
@@ -73,7 +73,7 @@ TAction check_nop(CInstruction* p)
        && p->args[0]->label==p->next)
         /* jmp $+2 in allen Geschmacksrichtungen */
         return A_DELETE;
-    
+
     return A_BAD;
 }
 
@@ -98,19 +98,19 @@ TAction check_jump(CInstruction* p)
             n->param = p->param ^ 1;
             return A_DELETE;
         } else if(*p->args[0] == *p->next->args[0]) {
-            /* Zwei Spr¸nge - eine Meinung */
+            /* Zwei Spr√ºnge - eine Meinung */
             return A_DELETE;
         }
     } else if(p->next->insn == I_JCC) {
         CInstruction* n = p->next;
 
-        /* Zwei SprÅnge. Wenn der zweite immer dann springt, wenn
-           der erste das auch tut -> lîsche zweiten */
+        /* Zwei Spr¬Ånge. Wenn der zweite immer dann springt, wenn
+           der erste das auch tut -> l¬îsche zweiten */
         int fst = jmp_char[p->param];
         int snd = jmp_char[n->param];
-        if (fst == IF_NONEQUAL) 
+        if (fst == IF_NONEQUAL)
             fst = IF_ABOVE | IF_BELOW | IF_LESS | IF_GREATER;
-        if (snd == IF_NONEQUAL) 
+        if (snd == IF_NONEQUAL)
             snd = IF_ABOVE | IF_BELOW | IF_LESS | IF_GREATER;
         if (((fst | snd) & IF_OTHER) == 0 && ALL_SET(fst, snd)) {
             /* trifft zu */
@@ -120,7 +120,7 @@ TAction check_jump(CInstruction* p)
         }
 
         if (*p->args[0] == *n->args[0]) {
-            /* Zwei SprÅnge zum selben Ziel */
+            /* Zwei Spr¬Ånge zum selben Ziel */
             /* probiere, einen Sprung zu synthetisieren, der
                beides auf einmal kann */
             int when = jmp_char[p->param] | jmp_char[n->param];
@@ -173,7 +173,7 @@ TAction check_cmp(CInstruction* p)
         delete p->args[1];
         p->args[1] = new CArgument(*(p->args[0]));
         p->insn = I_OR;
-        
+
         return A_RESCAN;
     }
     return A_BAD;
@@ -191,7 +191,7 @@ TAction check_zerotest(CInstruction* p)
         /*
          *  op reg,xxx
          *  nulltest reg
-         *  -> den Nulltest lˆschen
+         *  -> den Nulltest l√∂schen
          */
         CInstruction* in = p->next;
         if(in->insn==I_OR || in->insn==I_AND) {
@@ -211,7 +211,7 @@ TAction check_zerotest(CInstruction* p)
         } else
             return A_BAD;
 
-        /* wir kˆnnen den n‰chsten Befehl wegwerfen */
+        /* wir k√∂nnen den n√§chsten Befehl wegwerfen */
         p->next = in->next;
         delete in;
 
@@ -234,7 +234,7 @@ TAction check_zerotest_jb(CInstruction* p)
                 /* jnb -> jmp */
                 n->insn = I_JMPN;
             } else {
-                /* jb -> lˆschen */
+                /* jb -> l√∂schen */
                 p->next = n->next;
                 delete n;
             }
@@ -242,7 +242,7 @@ TAction check_zerotest_jb(CInstruction* p)
         } else if(n->insn==I_JMPN) {
             /* Nulltest + jmp */
             if(flag_check(n->args[0]->label->next))
-                /* Nulltest lˆschen */
+                /* Nulltest l√∂schen */
                 return A_DELETE;
         }
     }
@@ -260,7 +260,7 @@ TAction check_smalladd(CInstruction* p)
         return A_BAD;
 
     if(p->args[1]->immediate==128) {
-        /* Operand -128 ist eins k¸rzer als +128 */
+        /* Operand -128 ist eins k√ºrzer als +128 */
         p->args[1]->immediate=-128;
         if(p->insn==I_ADD)
             p->insn=I_SUB;
@@ -274,7 +274,7 @@ TAction check_smalladd(CInstruction* p)
     }
     if(p->args[1]->immediate==0) return A_DELETE;
 
-    /* kˆnnen wir optimieren? */
+    /* k√∂nnen wir optimieren? */
     int delta = p->args[1]->immediate;
     bool increase = (p->insn==I_ADD);
 
@@ -404,10 +404,10 @@ TAction check_mov(CInstruction* p)
                  * mov(1) mem,const
                  * -> mov(2) mem,const
                  */
-                
+
                 n->args[0]->inc_imm(1);
                 if(*p->args[0]==*n->args[0]) {
-                    /* erster Befehl l‰dt auf hˆhere Adresse */
+                    /* erster Befehl l√§dt auf h√∂here Adresse */
                     n->args[0]->inc_imm(-1);
                     n->opsize = 2;
                     n->args[1]->immediate =
@@ -417,7 +417,7 @@ TAction check_mov(CInstruction* p)
                 }
                 n->args[0]->inc_imm(-2);
                 if(*p->args[0]==*n->args[0]) {
-                    /* zweiter Befehl l‰dt auf hˆhere Adresse */
+                    /* zweiter Befehl l√§dt auf h√∂here Adresse */
                     //n->args[0]->inc_imm(1);
                     n->opsize = 2;
                     n->args[1]->immediate =
@@ -444,7 +444,7 @@ TAction check_mov(CInstruction* p)
         if(do_size && p->opsize==2) {
             /*
              *  Word-Operation
-             *  -> f¸r const=0 und const=-1 ist ein AND/OR k¸rzer
+             *  -> f√ºr const=0 und const=-1 ist ein AND/OR k√ºrzer
              *     (wegen signed operanden), aber langsamer
              */
             if(p->args[1]->is_immed(0)) {
@@ -461,8 +461,8 @@ TAction check_mov(CInstruction* p)
        && (p->args[0]->reg==rAX || p->args[1]->reg==rAX)) {
         /*
          * mov reg,ax / mov ax,reg
-         * -> durch `xchg' ersetzen (1 Byte k¸rzer), wenn das
-         *    Quellregister nicht mehr benˆtigt wird.
+         * -> durch `xchg' ersetzen (1 Byte k√ºrzer), wenn das
+         *    Quellregister nicht mehr ben√∂tigt wird.
          */
         TRegister src = p->args[1]->reg;
         CInstruction* n = p->next;
@@ -479,7 +479,7 @@ TAction check_mov(CInstruction* p)
                 && !n->args[1]->uses_reg(src))
             /* IMUL src,[FOO],n */
             doit=true;
-        
+
         if(doit) {
             p->insn = I_XCHG;
             return A_RESCAN;
@@ -490,12 +490,12 @@ TAction check_mov(CInstruction* p)
        && p->next->insn==I_JCC
        && p->next->args[0]->type==CArgument::LABEL) {
         /*
-         * mov rb,0 
+         * mov rb,0
          * jcc label
          */
         CInstruction* jump_insn = p->next;
         CInstruction* inc_insn = jump_insn->next;
-        
+
         if(inc_insn && inc_insn->insn==I_INC && inc_insn->args[0]->is_word_reg()
            && jump_insn->args[0]->label==inc_insn->next) {
             /*
@@ -529,7 +529,7 @@ TAction check_mov(CInstruction* p)
      *      mov [foo], reg       | mov reg,blurfl
      */
     if(p->args[0]->type==CArgument::MEMORY             // Speicher-Argument
-       && p->next                                      // gibt n‰chsten
+       && p->next                                      // gibt n√§chsten
        && p->next->insn==I_MOV                         // der ein mov ist
        && *p->args[0] == *p->next->args[1]             // memory operand ist derselbe
        && ((p->args[1]->type==CArgument::REGISTER      // mov [mem],reg
@@ -553,7 +553,7 @@ TAction check_mov(CInstruction* p)
                 CArgument* a = p->next->args[0];               // `reg'
                 p->next->args[0] = p->next->args[1];
                 p->next->args[1] = a;
-                /* erste insn ‰ndern */
+                /* erste insn √§ndern */
                 delete p->args[0];
                 p->args[0] = new CArgument(*a);
                 return A_RESCAN;
@@ -574,7 +574,7 @@ TAction check_mov(CInstruction* p)
     if(p->next->insn == I_MOV &&
        *p->args[0] == *p->next->args[1] &&
        *p->args[1] == *p->next->args[0]) {
-        /* einen lˆschen */
+        /* einen l√∂schen */
         CInstruction* n = p->next;
         p->next = n->next;
         delete n;
@@ -593,14 +593,14 @@ TAction check_xchg(CInstruction* p)
     CInstruction* n = p->next;
     if(n->insn != I_XCHG && n->insn != I_MOV)
         return A_BAD;
-    
+
     if((*p->args[0]==*n->args[0] && *p->args[1]==*n->args[1])
        || (*p->args[1]==*n->args[0] && *p->args[0]==*n->args[1])) {
         if(p->next->insn == I_XCHG) {
             /*
              *  xchg foo,bar
              *  xchg foo,bar
-             *  -> lˆschen
+             *  -> l√∂schen
              */
             p->next = n->next;
             delete n;
@@ -609,7 +609,7 @@ TAction check_xchg(CInstruction* p)
             /*
              *  xchg foo,bar
              *  mov foo,bar
-             *  -> xchg lˆschen, mov umdrehen
+             *  -> xchg l√∂schen, mov umdrehen
              */
             CArgument* a = n->args[0];
             n->args[0] = n->args[1];
@@ -674,7 +674,7 @@ TAction check_maybe_unary(CInstruction* p)
 /*
  *  push [mem]
  *  mov reg,[mem]
- *  -> tauschen, dann wird push k¸rzer
+ *  -> tauschen, dann wird push k√ºrzer
  */
 TAction check_push_reg(CInstruction* p)
 {
@@ -711,7 +711,7 @@ TAction check_shift(CInstruction* p)
 {
     if(p->insn == I_SHL && p->args[1]->type == CArgument::IMMEDIATE
        && !p->args[1]->reloc) {
-        if(p->next->insn == I_SHL      
+        if(p->next->insn == I_SHL
            && p->next->args[1]->type == CArgument::IMMEDIATE
            && !p->next->args[1]->reloc
            && *p->args[0] == *p->next->args[0]) {
@@ -777,7 +777,7 @@ TAction check_zero_arit(CInstruction* p)
     switch(p->insn) {
      case I_AND:
         /* and foo,0
-           -> xor foo,foo  [wenn mˆglich] */
+           -> xor foo,foo  [wenn m√∂glich] */
         if(p->args[0]->type != CArgument::REGISTER)
             return A_BAD;
         p->insn = I_XOR;
@@ -787,7 +787,7 @@ TAction check_zero_arit(CInstruction* p)
      case I_OR:
      case I_SUB:
         /* or foo,0
-           -> or foo,foo  [wenn mˆglich] */
+           -> or foo,foo  [wenn m√∂glich] */
         if(p->args[0]->type != CArgument::REGISTER)
             return A_BAD;
         p->insn = I_OR;
@@ -815,7 +815,7 @@ TAction check_cwd_longmul(CInstruction* p)
 {
     if(p->insn != I_CWD)
         return A_BAD;
-    
+
     CInstruction* movcx = p->next;
 
     if(!movcx)
@@ -905,7 +905,7 @@ TAction check_cwd_longmul(CInstruction* p)
  * SKIP:               mov T, A2
  *   mov T, A2
  *
- *   wenn T unabh‰ngig von A2
+ *   wenn T unabh√§ngig von A2
  */
 TAction check_double_mov(CInstruction* i)
 {
@@ -948,17 +948,17 @@ TAction check_double_mov(CInstruction* i)
 /*
  *   mov REG, <anything>
  *   pop REG1
- *   -> tauschen, wenn unabh‰ngig
+ *   -> tauschen, wenn unabh√§ngig
  *
  *   push <anything>
  *   mov REG, <anything>
- *   -> tauschen, wenn unabh‰ngig (Ziel: DFA mˆglich machen)
+ *   -> tauschen, wenn unabh√§ngig (Ziel: DFA m√∂glich machen)
  */
 TAction check_mov_pop(CInstruction* i)
 {
     CInstruction* n;
     if(i->insn == I_MOV && i->next->insn == I_POP) {
-        if(i->args[0]->type != CArgument::REGISTER 
+        if(i->args[0]->type != CArgument::REGISTER
            || i->next->args[0]->type != CArgument::REGISTER)
             return A_BAD;
         if(i->args[0]->reg == rSP)
@@ -1027,7 +1027,7 @@ TAction check_push_pop(CInstruction* i)
  *  mov  r1, irgendwas    => mov r2, irgendwas
  *  mov  r2, r1
  *
- *  wenn zul‰ssig (i.e., r1 wird nicht mehr benutzt)
+ *  wenn zul√§ssig (i.e., r1 wird nicht mehr benutzt)
  */
 TAction check_reg_swap(CInstruction* i)
 {
@@ -1063,7 +1063,7 @@ TAction check_reg_swap(CInstruction* i)
     TRegister r1 = i->args[0]->reg;
     TRegister r2 = mov->args[0]->reg;
 
-    /* Form stimmt; Abh‰ngigkeiten pr¸fen */
+    /* Form stimmt; Abh√§ngigkeiten pr√ºfen */
     if(i->args[1]->uses_reg(r2) || i->args[1]->uses_reg_part(r2))
         return A_BAD;
 
@@ -1080,9 +1080,9 @@ TAction check_reg_swap(CInstruction* i)
         }
         compute_insn_dep(in, out, p);
         /* unsicher, wenn
-           - in enth‰lt r1 oder Teil oder ‹bermenge von r1
+           - in enth√§lt r1 oder Teil oder √úbermenge von r1
            sicher, wenn
-           - out ¸berschreibt r1 oder ‹bermenge von r1 */
+           - out √ºberschreibt r1 oder √úbermenge von r1 */
         in.fix_regs();
         if(in.regs & (1 << r1))
             return A_BAD;       // beweisbar nicht sicher
@@ -1092,7 +1092,7 @@ TAction check_reg_swap(CInstruction* i)
         p = p->next;
     }
 
-    /* ok --- durchf¸hren */
+    /* ok --- durchf√ºhren */
     if(i->insn == I_MOV) {
         delete mov->args[1];
         mov->args[1] = new CArgument(*i->args[1]);
@@ -1122,10 +1122,10 @@ TAction check_reg_swap(CInstruction* i)
  *  => push SREG
  *     push ARG
  *     mov(2) [SREG:ARG], xx01h
- *  wenn ein L‰nge-1-String gepusht wird
+ *  wenn ein L√§nge-1-String gepusht wird
  *     mov(2) [SREG:ARG], xx03h
  *     mov(2) [SREG:ARG+2], xxxxh
- *  bei L‰nge 3
+ *  bei L√§nge 3
  */
 TAction check_push_char(CInstruction* i)
 {
@@ -1148,8 +1148,8 @@ TAction check_push_char(CInstruction* i)
     if(push3->insn != I_PUSH || push3->args[0]->type != CArgument::IMMEDIATE)
         return A_BAD;
     CRelo* r = push3->args[0]->reloc;
-    // FIXME? Annahme, daﬂ Turbo nie solche Referenzen erzeugt, die
-    // auf externe Blˆcke zeigen
+    // FIXME? Annahme, da√ü Turbo nie solche Referenzen erzeugt, die
+    // auf externe Bl√∂cke zeigen
     if(!r || /*r->unitnum!=ref_this_unit ||*/ r->rtype != CODE_OFS_REF ||
        r->rblock != global_code_id)
         return A_BAD;
@@ -1223,9 +1223,9 @@ TAction check_push_ptr(CInstruction* i)
             return A_BAD;       // nicht beweisbar sicher
         compute_insn_dep(in, out, p);
         /* unsicher, wenn
-           - in enth‰lt r1 oder Teil oder ‹bermenge von r1
+           - in enth√§lt r1 oder Teil oder √úbermenge von r1
            sicher, wenn
-           - out ¸berschreibt r1 oder ‹bermenge von r1 */
+           - out √ºberschreibt r1 oder √úbermenge von r1 */
         in.fix_regs();
         if(in.regs & test)
             return A_BAD;       // beweisbar nicht sicher
@@ -1312,7 +1312,7 @@ TAction check_func_return(CInstruction* i)
  */
 TAction check_int_arit(CInstruction* i)
 {
-    if(i->insn == I_AND && i->args[0]->is_byte_reg() 
+    if(i->insn == I_AND && i->args[0]->is_byte_reg()
        && i->args[1]->type == CArgument::IMMEDIATE && !i->args[1]->reloc
        && i->next->insn == I_XOR) {
         TRegister rl = i->args[0]->reg;
@@ -1353,7 +1353,7 @@ TAction check_dead_tests(CInstruction* i)
  *     mov reg2,mem
  *  => mov reg2,mem
  *     mov reg1,const
- *  Ermˆglicht CSE/Load-Optimierung, falls der Speicheroperand
+ *  Erm√∂glicht CSE/Load-Optimierung, falls der Speicheroperand
  *  vorher in reg1 stand (entsteht z.B. bei "i = 1 shl i")
  */
 TAction check_mov_const(CInstruction* i)
@@ -1368,17 +1368,17 @@ TAction check_mov_const(CInstruction* i)
         /* ok */;
     else
         return A_BAD;
-    
+
     if (n->args[1]->uses_reg(i->args[0]->reg))
-        /* Insn2 nutzt Ergebnis von insn1. FIXME: mˆglicherweise
-           kˆnnen wir Ergebnis direkt einsetzen? */
+        /* Insn2 nutzt Ergebnis von insn1. FIXME: m√∂glicherweise
+           k√∂nnen wir Ergebnis direkt einsetzen? */
         return A_BAD;
 
     if (*i->args[0] == *n->args[0])
         /* zwei move auf gleiches Register */
         return A_DELETE;
 
-    /* kˆnnen getauscht werden. */
+    /* k√∂nnen getauscht werden. */
     std::swap(i->args[0], n->args[0]);
     std::swap(i->args[1], n->args[1]);
     return A_RESCAN;
@@ -1488,6 +1488,6 @@ CInstruction* peephole_optimization(CInstruction* insn)
                 i++;
         }
     }
-    
+
     return insn;
 }

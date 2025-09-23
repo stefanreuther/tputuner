@@ -1,5 +1,5 @@
 /*
- *  Peephole-Optimierung für tputuner
+ *  Peephole-Optimierung fÃ¼r tputuner
  *
  *  (c) copyright 1998 by Stefan Reuther
  */

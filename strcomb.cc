@@ -1,14 +1,14 @@
 /*
- *  String-Kombination f¸r tputuner
+ *  String-Kombination f√ºr tputuner
  *
  *  (c) copyright 1999 by Stefan Reuther
  *
  *  Dieses Modul kombiniert Zeichenketten, die mehrfach vorkommen:
- *  - Datenbasis sind alle Codeblocks, deren "Pr‰fix" (Offset 0..entry_ofs)
- *    nur Pascal-Strings enth‰lt
+ *  - Datenbasis sind alle Codeblocks, deren "Pr√§fix" (Offset 0..entry_ofs)
+ *    nur Pascal-Strings enth√§lt
  *  - Gleiche Strings werden kombiniert
- *  - String-Kombination ist nicht mˆglich, wenn Referenzen auf andere
- *    Adressen als String-Anf‰nge zeigen
+ *  - String-Kombination ist nicht m√∂glich, wenn Referenzen auf andere
+ *    Adressen als String-Anf√§nge zeigen
  */
 
 #include <iostream>
@@ -33,14 +33,14 @@ struct CInfo {
 };
 
 /* sucht in Codeblock p nach Zeichenketten
-   - tr‰gt g¸ltige Referenzen in STRS ein
+   - tr√§gt g√ºltige Referenzen in STRS ein
    - meldet Strings in M an */
 void check_strings(CCodeBlock* p, map<string,CInfo>& m, set<CInfo>& strs)
 {
     p->strcomb_ok = false;
     if(p->status != CCodeBlock::OK || p->entry->entry_ofs==0)
         return;
-    
+
     int index  = 0;
     char* code = (p->new_code ? p->new_code->code : unit + p->code_ofs);
     while(index < p->entry->entry_ofs) {
@@ -66,8 +66,8 @@ void check_strings(CCodeBlock* p, map<string,CInfo>& m, set<CInfo>& strs)
     }
 }
 
-/* Pr¸ft die Relokations-Eintr‰ge von Codeblock P
-   ret FALSE wenn darunter einige sind, die Stringkombinierung unmˆglich
+/* Pr√ºft die Relokations-Eintr√§ge von Codeblock P
+   ret FALSE wenn darunter einige sind, die Stringkombinierung unm√∂glich
    machen */
 bool check_string_relo(CCodeBlock* p, const set<CInfo>& inf)
 {
@@ -78,8 +78,8 @@ bool check_string_relo(CCodeBlock* p, const set<CInfo>& inf)
         CRelo r(relos);
         if(((unsigned char)r.rtype & 0xC0) == 0x40) {
             /* CS Const */
-            // Annahme, daﬂ TP nie solche Referenzen erzeugt, die auf
-            // externe Blˆcke zeigen
+            // Annahme, da√ü TP nie solche Referenzen erzeugt, die auf
+            // externe Bl√∂cke zeigen
             if(inf.find(CInfo(r.rblock, r.rofs)) == inf.end())
                 return false;
         }

@@ -1,5 +1,5 @@
 #!/bin/sh
-# faßt die Ausgaben von tputuner zusammen:
+# faÃŸt die Ausgaben von tputuner zusammen:
 #  tputuner unit1.tpu >liste
 #  tputuner unit2.tpu >>liste
 #  tputuner unit3.tpu >>liste

@@ -2,7 +2,7 @@
 #
 #  Aufruf: ./annotate <quelltext.pas | less
 #
-#  markiert alle Codeblock-Anfänge mit einem Kommentar der Form
+#  markiert alle Codeblock-AnfÃ¤nge mit einem Kommentar der Form
 #  "{### block1d0 ###}". Dumbfire-Version (erwischt auch falsche)
 #
 #  (c) copyright 1999,2000 Stefan Reuther <Streu@gmx.de>
@@ -18,7 +18,7 @@ BEGIN {
 /^ *(CONSTRUCTOR|DESTRUCTOR|FUNCTION|PROCEDURE)/ {
   if(working) {
     if(/FORWARD;/ || /INLINE/) {
-      print; 
+      print;
       next;
     }
     s = $0;

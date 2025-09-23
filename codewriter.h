@@ -1,5 +1,5 @@
 /*
- *  Code-Ausgabe für tputuner
+ *  Code-Ausgabe fÃ¼r tputuner
  *
  *  (c) copyright 1998 by Stefan Reuther
  */
@@ -19,7 +19,7 @@ class CCodeWriter {
     virtual ~CCodeWriter() {}
 };
 
-/* Dummy-Schreiber, zum Berechnen der Größe des Codes */
+/* Dummy-Schreiber, zum Berechnen der GrÃ¶ÃŸe des Codes */
 class CCWCounter : public CCodeWriter {
  public:
     int bytes;

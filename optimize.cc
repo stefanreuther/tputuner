@@ -47,7 +47,7 @@ CInstruction* remove_unused_code(CInstruction* insn)
             } else if(insn->args[i]->type==CArgument::REGISTER
                && insn->args[i]->reg==rBP) {
                 if(insn->insn!=I_PUSH && insn->insn!=I_POP && insn->insn!=I_MOV)
-                    used_bp=true;                    
+                    used_bp=true;
             } else if(insn->args[i]->type==CArgument::MEMORY) {
                 if(insn->args[i]->memory[0]==rBP
                    || insn->args[i]->memory[1]==rBP)
@@ -55,27 +55,27 @@ CInstruction* remove_unused_code(CInstruction* insn)
             }
         }
 #endif
-        
-	if(insn->insn == I_JMPN || insn->insn == I_JMPF) {
-	    /*
-	     *    jmp <xxx>
-	     *    [xxx] <- unerreichbarer Code
-	     *    label`n'
-	     */
-	    CInstruction* ip = insn->next;
-	    int n = 0;
-	    while(ip) {
-		CInstruction* p = ip;
-		if(ip->insn == I_LABEL && ip->param!=0) break;
-		ip = ip->next;
-		delete p;
-		n++;
-	    }
-	    if(n) changed=true;
-	    insn->next = ip;
-	}
+
+        if(insn->insn == I_JMPN || insn->insn == I_JMPF) {
+            /*
+             *    jmp <xxx>
+             *    [xxx] <- unerreichbarer Code
+             *    label`n'
+             */
+            CInstruction* ip = insn->next;
+            int n = 0;
+            while(ip) {
+                CInstruction* p = ip;
+                if(ip->insn == I_LABEL && ip->param!=0) break;
+                ip = ip->next;
+                delete p;
+                n++;
+            }
+            if(n) changed=true;
+            insn->next = ip;
+        }
         prev = insn;
-	insn = insn->next;
+        insn = insn->next;
     }
 
 #if REMOVE_FRAME
@@ -85,8 +85,8 @@ CInstruction* remove_unused_code(CInstruction* insn)
     if(!used_bp && insn0 && prev) {
         // insn0 = erste insn
         // prev = letzte
-        int entry_count = 0; // Anzahl Befehle für Eintrittscode
-        int exit_count = 0;  // Für Austrittscode
+        int entry_count = 0; // Anzahl Befehle fÃ¼r Eintrittscode
+        int exit_count = 0;  // FÃ¼r Austrittscode
 
         if(insn0->insn == I_ENTER)
             /* enter X,Y */
@@ -115,7 +115,7 @@ CInstruction* remove_unused_code(CInstruction* insn)
 
         if(entry_count && exit_count) {
             /* ok, bekannter Entry/Exitcode gefunden -> entfernen */
-            
+
             /* Eintrittscode */
             while(entry_count--) {
                 insn = insn0;
@@ -131,9 +131,9 @@ CInstruction* remove_unused_code(CInstruction* insn)
             }
             /* wir setzen ein Label an den Anfang */
             /* mindestens die DFA kann den 1. Befehl einer Folge nicht */
-            /* löschen - und Labels werden von der nicht gelöscht */
+            /* lÃ¶schen - und Labels werden von der nicht gelÃ¶scht */
             insn = new CInstruction(I_LABEL);
-            insn->param = 5; /* dummy: 0 wäre löschbar, 1 wäre zurück tracebar */
+            insn->param = 5; /* dummy: 0 wÃ¤re lÃ¶schbar, 1 wÃ¤re zurÃ¼ck tracebar */
             insn->next = insn0;
             insn0 = insn;
             changed = true;
@@ -150,29 +150,29 @@ CInstruction* remove_unused_code(CInstruction* insn)
 void reduce_redundant_jumps(CInstruction* insn)
 {
     while(insn) {
-	if((insn->insn == I_JMPN || insn->insn == I_JCC || insn->insn == I_JCXZ)
-	   && insn->args[0]->type==CArgument::LABEL) {
-	    /* it's a jump onto a label */
-	    while(1) {
-		CInstruction* target = insn->args[0]->label;
-		/* target is not a jump */
-		if(target->next->insn != I_JMPN) break;
+        if((insn->insn == I_JMPN || insn->insn == I_JCC || insn->insn == I_JCXZ)
+           && insn->args[0]->type==CArgument::LABEL) {
+            /* it's a jump onto a label */
+            while(1) {
+                CInstruction* target = insn->args[0]->label;
+                /* target is not a jump */
+                if(target->next->insn != I_JMPN) break;
 
-		/* jump chain doesn't end at a label */
-		if(target->next->args[0]->type != CArgument::LABEL)
-		    break;
-		int difference = target->next->args[0]->label->ip - insn->ip;
-		
-		/* jump outside range */
-		if(difference<-127 || difference>126) break;
-		
-		/* we can optimize */
-		delete insn->args[0];
-		insn->args[0] = new CArgument(*target->next->args[0]);
-		changed=true;
-	    }
-	}
-	if(insn) insn = insn->next;
+                /* jump chain doesn't end at a label */
+                if(target->next->args[0]->type != CArgument::LABEL)
+                    break;
+                int difference = target->next->args[0]->label->ip - insn->ip;
+
+                /* jump outside range */
+                if(difference<-127 || difference>126) break;
+
+                /* we can optimize */
+                delete insn->args[0];
+                insn->args[0] = new CArgument(*target->next->args[0]);
+                changed=true;
+            }
+        }
+        if(insn) insn = insn->next;
     }
 }
 
@@ -186,21 +186,21 @@ CCWCounter* recalc_offsets(CInstruction* insn)
     CCWCounter* w = new CCWCounter();
 
     while(insn) {
-	insn->ip = base_offset + w->bytes;
-	try {
-	    insn = insn->assemble(*w);
-	}
-	catch(string& s) {
-	    if(insn->ip != base_offset + w->bytes) {
-		/* ignore */
-		/* it can happen that a forward short jump gets out of
+        insn->ip = base_offset + w->bytes;
+        try {
+            insn = insn->assemble(*w);
+        }
+        catch(string& s) {
+            if(insn->ip != base_offset + w->bytes) {
+                /* ignore */
+                /* it can happen that a forward short jump gets out of
                  * range shortly because it moved to a lower address,
                  * but its target still sits on a high address, and
                  * has not yet been recomputed. */
-	    } else
-		throw string("Logic error: ") + s;
-	}
-	//insn = insn->next;
+            } else
+                throw string("Logic error: ") + s;
+        }
+        //insn = insn->next;
     }
 
     return w;
@@ -212,18 +212,18 @@ CCWCounter* recalc_offsets(CInstruction* insn)
 void write_file(int id, int pass, CInstruction* insn)
 {
     char filename[100];
-    
+
 #ifdef __MSDOS__
     sprintf(filename, "block%x.p%d", id, pass);
 #else
     sprintf(filename, "block%x.pass%d", id, pass);
 #endif
-            
+
     ofstream f(filename);
 
     while(insn) {
-	insn->print(f);
-	insn = insn->next;
+        insn->print(f);
+        insn = insn->next;
     }
 }
 
@@ -236,41 +236,41 @@ void reassemble(CNewCode* nc, int my_offset, CInstruction* _insn, CCWCounter* wc
     CInstruction* insn;
     while(1) {
      cont:
-	cout << "r" << ++reassembly_counter << " " << flush;
-	/* initialize CodeWriter */
-	nc->code_size = wc->bytes;
-	nc->code = new char[nc->code_size];
-	nc->relo_size = 8*wc->relos;
-	nc->relos = new char[nc->relo_size];
-	CCWMemory* w = new CCWMemory(nc->code, nc->code_size,
-				     nc->relos, nc->relo_size,
-				     my_offset);
+        cout << "r" << ++reassembly_counter << " " << flush;
+        /* initialize CodeWriter */
+        nc->code_size = wc->bytes;
+        nc->code = new char[nc->code_size];
+        nc->relo_size = 8*wc->relos;
+        nc->relos = new char[nc->relo_size];
+        CCWMemory* w = new CCWMemory(nc->code, nc->code_size,
+                                     nc->relos, nc->relo_size,
+                                     my_offset);
 
-	/* assemble */
-	insn = _insn;
-	while(insn) {
-	    if(insn->ip != w->ip) {
-		if(reassembly_counter < 10) {
-		    insn->ip = w->ip;
-		    delete wc;
-		    delete w;
-		    delete[] nc->code;
-		    delete[] nc->relos;
-		    wc = recalc_offsets(_insn);
-		    goto cont;
-		} else
-		    throw string("Reassembly error: can't stabilize code, giving up");
-	    }
-	    insn = insn->assemble(*w);
-	    //insn=insn->next;
-	}
-	
-	if(w->code_left || w->relo_left) {
-	    throw string("Reassembly error: code/relo size predicted wrong");
-	}
-	delete w;
-	delete wc;
-	break;
+        /* assemble */
+        insn = _insn;
+        while(insn) {
+            if(insn->ip != w->ip) {
+                if(reassembly_counter < 10) {
+                    insn->ip = w->ip;
+                    delete wc;
+                    delete w;
+                    delete[] nc->code;
+                    delete[] nc->relos;
+                    wc = recalc_offsets(_insn);
+                    goto cont;
+                } else
+                    throw string("Reassembly error: can't stabilize code, giving up");
+            }
+            insn = insn->assemble(*w);
+            //insn=insn->next;
+        }
+
+        if(w->code_left || w->relo_left) {
+            throw string("Reassembly error: code/relo size predicted wrong");
+        }
+        delete w;
+        delete wc;
+        break;
     }
 }
 
@@ -363,7 +363,7 @@ void early_jumps(CInstruction* insn)
 
     while(insn) {
         CInstruction* next = insn->next;
-        
+
         if(insn->insn==I_JMPN && insn->args[0]->type==CArgument::LABEL
            && insn->args[0]->label != insn->next) {
             /* it's a jump, but not a `jmp $+2' */
@@ -372,7 +372,7 @@ void early_jumps(CInstruction* insn)
 
             while(here && there) {
                 if(here->insn==I_LABEL) break;
-                
+
                 /* find real instruction at jump target */
                 while(there && there->insn==I_LABEL)
                     there = there->prev;
@@ -408,7 +408,7 @@ void early_jumps(CInstruction* insn)
                 there = there->prev;
                 renamed = changed = true;
             }
-                
+
             /* we could delete anything */
             if(here && there && (renamed || (here != insn->prev))) {
                 /* here is the last insn to keep */
@@ -445,7 +445,7 @@ void early_jumps(CInstruction* insn)
                 changed = true;
             }
         }
-        
+
         insn = next;
     }
 }
@@ -606,8 +606,8 @@ try_remove_frame_pointer(CInstruction* p)
  *  Returns CNewCode object if successful, 0 on failure
  */
 CNewCode* do_optimize(int id,
-		      char* code, int code_size, int my_offset,
-		      char* relo, int relo_count)
+                      char* code, int code_size, int my_offset,
+                      char* relo, int relo_count)
 {
     global_code_ptr = code;
     global_code_id  = id;
@@ -619,32 +619,32 @@ CNewCode* do_optimize(int id,
 
     int status = 0;
     do {
-	delete w;
-	changed = false;
-	if(do_dumps)
-	    write_file(id, pass, insn);
-	pass++;
+        delete w;
+        changed = false;
+        if(do_dumps)
+            write_file(id, pass, insn);
+        pass++;
         if(do_the_cse)
             do_cse(insn);
         if(do_early_jmp)
             early_jumps(insn);
         if(do_late_jmp)
             late_jumps(insn);
-	if(do_jumpchains)
-	    reduce_redundant_jumps(insn);
-	if(do_remunused)
-	    insn = remove_unused_code(insn);
-	if(do_dfa && status==0)
-	    data_flow_analysis(insn);
+        if(do_jumpchains)
+            reduce_redundant_jumps(insn);
+        if(do_remunused)
+            insn = remove_unused_code(insn);
+        if(do_dfa && status==0)
+            data_flow_analysis(insn);
         if(do_reg_alloc && status==1)
             register_allocation(insn);
-	if(do_peephole)
-	    insn = peephole_optimization(insn);
+        if(do_peephole)
+            insn = peephole_optimization(insn);
         insn->ip = my_offset;
-	w = recalc_offsets(insn);
-	cout << pass << (changed?"! ":" ") << flush;
-	if(changed) exit_counter=2;
-	else exit_counter--;
+        w = recalc_offsets(insn);
+        cout << pass << (changed?"! ":" ") << flush;
+        if(changed) exit_counter=2;
+        else exit_counter--;
         if(exit_counter <= 0) {
             status++;
             if(status < 2)
@@ -663,15 +663,15 @@ CNewCode* do_optimize(int id,
     }
 
     if(code_size < w->bytes) {
-	cout << "Warning: new code got bigger - code block unchanged" << endl;
-	return 0;
+        cout << "Warning: new code got bigger - code block unchanged" << endl;
+        return 0;
     }
-    
+
     CNewCode* nc = new CNewCode;
     reassemble(nc, my_offset, insn, w);
-    
+
     cout << " --> " << code_size - nc->code_size << " bytes saved (new size = "
-	 << nc->code_size << ")" << endl;
+         << nc->code_size << ")" << endl;
 
     return nc;
 }

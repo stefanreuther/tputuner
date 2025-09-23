@@ -56,15 +56,15 @@ enum {
     byte    Unit Number (target)
     byte    type
                bit 7-6
-	           00 = Code
-		   01 = CS Const
-		   10 = Var
-		   11 = DS Const
-	       bit 5-4
-	           00 = relative
-		   01 = offset
-		   10 = segment
-		   11 = pointer
+                   00 = Code
+                   01 = CS Const
+                   10 = Var
+                   11 = DS Const
+               bit 5-4
+                   00 = relative
+                   01 = offset
+                   10 = segment
+                   11 = pointer
     word    Block number (target)
     word    Offset (target)
     word    Offset, where relocation is applied
@@ -127,15 +127,15 @@ enum {
     byte    Unit Number (target)
     byte    type
                bit 7-6
-	           00 = Code
-		   01 = CS Const
-		   10 = Var
-		   11 = DS Const
-	       bit 5-4
-	           00 = relative
-		   01 = offset
-		   10 = segment
-		   11 = pointer
+                   00 = Code
+                   01 = CS Const
+                   10 = Var
+                   11 = DS Const
+               bit 5-4
+                   00 = relative
+                   01 = offset
+                   10 = segment
+                   11 = pointer
     word    Block number (target)
     word    Offset (target)
     word    Offset, where relocation is applied

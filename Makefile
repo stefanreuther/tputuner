@@ -1,5 +1,5 @@
 #
-#  Makefile für TPUTUNER
+#  Makefile fÃ¼r TPUTUNER
 #
 
 EXENAME := tputuner

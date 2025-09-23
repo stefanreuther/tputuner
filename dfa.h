@@ -1,5 +1,5 @@
 /*
- *  "Datenflußanalyse" für tputuner
+ *  "DatenfluÃŸanalyse" fÃ¼r tputuner
  *
  *  (c) copyright 1998 by Stefan Reuther
  */

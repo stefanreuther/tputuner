@@ -1,5 +1,5 @@
 /*
- *  Registerallokierung für tputuner
+ *  Registerallokierung fÃ¼r tputuner
  *
  *  (c) copyright 1999,2000 by Stefan Reuther
  */
@@ -7,7 +7,7 @@
 #include "optimize.h"
 
 #define GLOBAL_ALLOC
-/* für globale Register Allocation */
+/* fÃ¼r globale Register Allocation */
 
 struct TEstimate {
     TEstimate* next;
@@ -40,7 +40,7 @@ int changeable_args[] = {
 
 
 /*
- *  Größe des Speicheroperanden /a/ (modrm, Overrides, disp)
+ *  GrÃ¶ÃŸe des Speicheroperanden /a/ (modrm, Overrides, disp)
  */
 int mem_op_size(CArgument* a)
 {
@@ -70,14 +70,14 @@ TEstimate::TEstimate(CArgument* a)
 {
     switch(a->type) {
      case CArgument::MEMORY:
-        /* bei konstanten Adressen: 3 Bytes für Adresse */
+        /* bei konstanten Adressen: 3 Bytes fÃ¼r Adresse */
         if(a->memory[0] == rNONE && a->memory[1] == rNONE &&
            (a->segment == rNONE || a->segment == rDS)) {
             save_if_adr = -3;
             may_adr = true;
         }
 
-        /* für Wert: benötigt `mov reg,[adr]' */
+        /* fÃ¼r Wert: benÃ¶tigt `mov reg,[adr]' */
         save_if_value = -1 - mem_op_size(a);
         break;
      case CArgument::IMMEDIATE:
@@ -94,7 +94,7 @@ TEstimate::TEstimate(CArgument* a)
 TEstimate* estimated_savings = 0;
 
 /*
- *  Abschätzung für Argument /a/ erzeugen
+ *  AbschÃ¤tzung fÃ¼r Argument /a/ erzeugen
  */
 TEstimate* get_estimation(CArgument* a)
 {
@@ -112,7 +112,7 @@ TEstimate* get_estimation(CArgument* a)
 }
 
 /*
- *  Lesezugriff auf Wert /p/ bewerten (Abschätzen der Ersparnisse)
+ *  Lesezugriff auf Wert /p/ bewerten (AbschÃ¤tzen der Ersparnisse)
  *  /sex/ = true, wenn der Operand als Wort oder sign-extended byte
  *  verwaltet wird
  *
@@ -129,7 +129,7 @@ TEstimate* estimate_read(CArgument* p, bool sex, bool have_modrm, bool znd)
         /* Speicheroperand */
         if(p->segment != rDS && p->segment != rSS)
             return 0;
-        
+
         e = get_estimation(p);
         e->save_if_adr += mem_op_size(p) - 1;
         if(p->segment != rDS)
@@ -154,18 +154,18 @@ TEstimate* estimate_read(CArgument* p, bool sex, bool have_modrm, bool znd)
 }
 
 /*
- *  Schreibzugriff auf Wert /p/ bewerten (Abschätzen der Ersparnisse)
+ *  Schreibzugriff auf Wert /p/ bewerten (AbschÃ¤tzen der Ersparnisse)
  */
 void estimate_write(CArgument* p, bool znd)
 {
     TEstimate* e = estimate_read(p, false, true, znd);
-    
+
     if(e)
         e->may_value = false;
 }
 
 /*
- *  Abschätzungs-Tabelle leeren
+ *  AbschÃ¤tzungs-Tabelle leeren
  */
 void clear_estimates()
 {
@@ -177,7 +177,7 @@ void clear_estimates()
 }
 
 /*
- *  Abschätzen der Ersparnisse für Befehl /insn/
+ *  AbschÃ¤tzen der Ersparnisse fÃ¼r Befehl /insn/
  *  znd = true, wenn dieser Befehl mit dem vorigen Befehl zusammen
  *  als 32bit-Operation codiert ist (Ersparnis ist dann geringer)
  */
@@ -243,7 +243,7 @@ void estimate_insn(CInstruction* insn, bool znd)
 
 /*
  *  Sucht besten Operanden, der in ein Register gepackt werden kann.
- *  may_adr = true, wenn auch Adressen möglich sind. adr = true,
+ *  may_adr = true, wenn auch Adressen mÃ¶glich sind. adr = true,
  *  wenn ein Adressoperand gefunden wurde, sonst false (Wertoperand).
  */
 TEstimate* find_best(bool& adr, bool may_adr)
@@ -256,7 +256,7 @@ TEstimate* find_best(bool& adr, bool may_adr)
             if(p->arg->type == CArgument::MEMORY &&
                (p->arg->memory[0]!=rNONE || p->arg->memory[1]!=rNONE))
                 p->may_value = p->may_adr = false;
-            
+
             if(p->may_value && p->save_if_value > best_save) {
                 best = p;
                 best_save = p->save_if_value;
@@ -291,7 +291,7 @@ void replace_argument(CArgument*& arg, TRegister reg, bool adr)
 
 /*
  *  Register-Allokation in dem durch /start/ und /end/ begrenzten
- *  basic block, zur Verfügung stehen Register, die in /regs_used/
+ *  basic block, zur VerfÃ¼gung stehen Register, die in /regs_used/
  *  /false/ stehen haben.
  */
 void optimize_basic_block(CInstruction* start, CInstruction* end, bool* regs_used)
@@ -317,7 +317,7 @@ void optimize_basic_block(CInstruction* start, CInstruction* end, bool* regs_use
                 if(v)
                     replace[i]->type = CArgument::IMMEDIATE;
                 use_adr[i] = v;
-                /* Ändern der Argumente zerstört p->args */
+                /* Ã„ndern der Argumente zerstÃ¶rt p->args */
                 found = true;
 
                 for(TEstimate* q = estimated_savings; q != 0; q = q->next) {
@@ -331,7 +331,7 @@ void optimize_basic_block(CInstruction* start, CInstruction* end, bool* regs_use
     if(!found)
         return;
 
-    /* Änderungsbefehle erzeugen */
+    /* Ã„nderungsbefehle erzeugen */
     for(int i = rAX; i <= rDI; i++)
         if(replace[i]) {
             CInstruction* n = new CInstruction(I_MOV, new CArgument(TRegister(i)),
@@ -339,7 +339,7 @@ void optimize_basic_block(CInstruction* start, CInstruction* end, bool* regs_use
             n->prev = start->prev;
             n->next = start;
             start->prev->next = n;
-            start->prev = n;            
+            start->prev = n;
         }
 
     /* Nun die Argumente ersetzen */
@@ -412,7 +412,7 @@ void global_register_allocation(CInstruction* insn, bool* regs_used)
     CInstruction* pre = 0;
     clear_estimates();
 
-    /* Stackframe überlesen */
+    /* Stackframe Ã¼berlesen */
     if(insn->insn == I_ENTER) {
         pre = insn;
     } else if(insn->insn == I_PUSH && insn->args[0]->is_reg(rBP)) {
@@ -434,10 +434,10 @@ void global_register_allocation(CInstruction* insn, bool* regs_used)
     }
     if(!pre)
         return;
-    
+
     insn = pre->next;
 
-    int last_ip = -1;   
+    int last_ip = -1;
     for(CInstruction* p = insn; p != 0; p = p->next)
         if(p->opsize == 2) {
             estimate_insn(p, last_ip == p->ip);
@@ -466,7 +466,7 @@ void global_register_allocation(CInstruction* insn, bool* regs_used)
     }
 
     /* Aliase rauswerfen */
-    max_bp += 3;                // Max. Operandengröße 4
+    max_bp += 3;                // Max. OperandengrÃ¶ÃŸe 4
     char* markers = new char[max_bp - min_bp + 1];
     for(int i = 0; i <= max_bp - min_bp; i++)
         markers[i] = 0;
@@ -491,7 +491,7 @@ void global_register_allocation(CInstruction* insn, bool* regs_used)
                     count = 1;
                 else if((j & 1) != 0)
                     count = 2;
-                
+
                 for(int q = 0; q < count; q++) {
                     if(j >= min_bp && j <= max_bp)
                         markers[j - min_bp] = 2;
@@ -532,7 +532,7 @@ void global_register_allocation(CInstruction* insn, bool* regs_used)
 #endif
 
 /*
- *  Registerallokation durchführen
+ *  Registerallokation durchfÃ¼hren
  *
  *  Wenn eine Funktion ein Register nicht verwendet, kann dieses
  *  innerhalb eines `basic blocks'
@@ -560,7 +560,7 @@ void register_allocation(CInstruction* oinsn)
     for(CInstruction* p = insn; p; p = p->next) {
         switch(p->insn) {
          case I_MOV:
-            if(stackcheck == 1 || stackcheck == 2) 
+            if(stackcheck == 1 || stackcheck == 2)
                 stackcheck++;
             else
                 stackcheck = -1;
@@ -596,7 +596,7 @@ void register_allocation(CInstruction* oinsn)
             regs_used[rAX] = regs_used[rDX] = true;
     }
 
-    /* Aliasregister auflösen */
+    /* Aliasregister auflÃ¶sen */
     for(int i = rNONE; i < rMAX; i++)
         if(regs_used[i])
             for(int j = rNONE; j < rMAX; j++)
@@ -608,12 +608,12 @@ void register_allocation(CInstruction* oinsn)
     for(int i = rAX; i <= rDI; i++)
         if(!regs_used[i])
             free_regs++;
-    
+
     if(!free_regs)
         return;
 
 #ifdef GLOBAL_ALLOC
-    /* können wir global Variablen in Register packen? */
+    /* kÃ¶nnen wir global Variablen in Register packen? */
     if(can_global) {
         global_register_allocation(oinsn, regs_used);
     }

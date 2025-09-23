@@ -1,5 +1,5 @@
 /*
- *  Disassembler für tputuner
+ *  Disassembler fÃ¼r tputuner
  *
  *  (c) copyright 1998 by Stefan Reuther
  */
@@ -9,6 +9,6 @@
 #include "insn.h"
 
 CInstruction* disassemble(char* acode, int code_size, int my_offset,
-			  char* _relo, int _relo_count);
+                          char* _relo, int _relo_count);
 
 #endif

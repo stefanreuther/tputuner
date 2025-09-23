@@ -1,11 +1,11 @@
 /*
- *  Code-Ausgabe f¸r tputuner
+ *  Code-Ausgabe f√ºr tputuner
  *
  *  (c) copyright 1998 by Stefan Reuther
  *
  *  Ein Code-Writer bietet Methoden zum Schreiben von Codebytes
- *  und Relozierungseintr‰gen an. CCWCounter verwirft diese Daten
- *  und z‰hlt sie nur, CCWMemory schreibt sie in ein char-Feld.
+ *  und Relozierungseintr√§gen an. CCWCounter verwirft diese Daten
+ *  und z√§hlt sie nur, CCWMemory schreibt sie in ein char-Feld.
  */
 #include "codewriter.h"
 #include <string>
@@ -33,7 +33,7 @@ CCWMemory::CCWMemory(char* acp, int acl, char* arp, int arl, int aip)
 void CCWMemory::wb(char c)
 {
     if(!code_left)
-	throw string("Code exceeds buffer size");
+        throw string("Code exceeds buffer size");
     *code_ptr++ = c;
     ip++;
     code_left--;
@@ -42,7 +42,7 @@ void CCWMemory::wb(char c)
 void CCWMemory::put_reloc(CRelo* r)
 {
     if(relo_left < 8)
-	throw string("Relocation buffer overflow");
+        throw string("Relocation buffer overflow");
     *relo_ptr++ = r->unitnum;
     *relo_ptr++ = r->rtype;
     *relo_ptr++ = r->rblock & 255;

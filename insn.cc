@@ -1,11 +1,11 @@
 /*
- *  Verwaltung von Assembler-Befehlen für tputuner
+ *  Verwaltung von Assembler-Befehlen fÃ¼r tputuner
  *
  *  (c) copyright 1998,1999,2000 by Stefan Reuther
  *
  *  Jeder Befehl ist ein CInstruction-Objekt, die Argumente sind
- *  CArgument'e. Es gibt keine Subklassen für spezielle Befehle
- *  -> Musterbeispiel für schlechtes OO ;-)
+ *  CArgument'e. Es gibt keine Subklassen fÃ¼r spezielle Befehle
+ *  -> Musterbeispiel fÃ¼r schlechtes OO ;-)
  */
 #include "insn.h"
 #include <iostream>
@@ -21,15 +21,15 @@ const TRegister index_regs[8] = { rSI, rDI, rSI, rDI, rNONE, rNONE, rNONE, rNONE
 const TRegister def_seg[8] = { rDS, rDS, rSS, rSS, rDS, rDS, rSS, rDS };
 
 char reg_sizes[] = { 0,
-		     2, 2, 2, 2, 2, 2, 2, 2,
-		     1, 1, 1, 1, 1, 1, 1, 1,
-		     2, 2, 2, 2,
+                     2, 2, 2, 2, 2, 2, 2, 2,
+                     1, 1, 1, 1, 1, 1, 1, 1,
+                     2, 2, 2, 2,
                      0 };
 
 char reg_values[] = { 0,
-		      0, 1, 2, 3, 4, 5, 6, 7,
-		      0, 1, 2, 3, 4, 5, 6, 7,
-		      0, 1, 2, 3,
+                      0, 1, 2, 3, 4, 5, 6, 7,
+                      0, 1, 2, 3, 4, 5, 6, 7,
+                      0, 1, 2, 3,
                       0 };
 
 const char*const insn_names[] = {
@@ -46,11 +46,11 @@ const char*const insn_names[] = {
 
     "jcc", "callf", "calln", "jmpn", "jmpf", "retn", "retf",
     "jcxz",
-	       
+
     "cbw", "cwd",
 
     "rol", "ror", "rcl", "rcr", "shl", "shr", "sar",
-	       
+
     "leave", "enter",
 
     "flag", "string",
@@ -98,7 +98,7 @@ CRelo::CRelo(char* p)
 void CRelo::print(ostream& cout)
 {
     cout << "<un=" << (unsigned int)unitnum << ",rt=" << (unsigned int)rtype
-	 << ",rb=" << rblock << ",ro=" << rofs << ">";
+         << ",rb=" << rblock << ",ro=" << rofs << ">";
 }
 
 bool CRelo::operator==(const CRelo& c) const
@@ -114,7 +114,7 @@ CArgument::CArgument(TRegister areg)
 {}
 
 CArgument::CArgument(TRegister base, TRegister index, int immed, CRelo* areloc,
-		     TRegister seg)
+                     TRegister seg)
     : type(MEMORY), immediate(immed), reloc(areloc), segment(seg), label(0)
 {
     memory[0] = base;
@@ -149,19 +149,19 @@ CArgument::~CArgument()
 bool CArgument::uses_reg(TRegister r)
 {
     if(type==REGISTER)
-	return reg==r;
+        return reg==r;
     else if(type==MEMORY)
-	return (r==memory[0] || r==memory[1] || r==segment);
+        return (r==memory[0] || r==memory[1] || r==segment);
     else
-	return false;
+        return false;
 }
 
-// true, wenn der Operand Register /r/ enthält
-// (der Befehl ändert den Operanden. Beeinflußt das r?)
+// true, wenn der Operand Register /r/ enthÃ¤lt
+// (der Befehl Ã¤ndert den Operanden. BeeinfluÃŸt das r?)
 bool CArgument::affects_reg(TRegister r)
 {
     if(type==REGISTER)
-	return alias_reg(reg, r);
+        return alias_reg(reg, r);
     else
         return false;
 }
@@ -170,18 +170,18 @@ bool CArgument::affects_reg(TRegister r)
 bool CArgument::uses_reg_part(TRegister r)
 {
     if(type==REGISTER)
-	return alias_reg(reg, r);
+        return alias_reg(reg, r);
     else if(type==MEMORY)
-	return alias_reg(memory[0], r) || alias_reg(memory[1], r) || alias_reg(segment, r);
+        return alias_reg(memory[0], r) || alias_reg(memory[1], r) || alias_reg(segment, r);
     else
-	return false;
+        return false;
 }
 
-// liefert Operandengröße
+// liefert OperandengrÃ¶ÃŸe
 int CArgument::get_size()
 {
     if(type==REGISTER) {
-	return reg_sizes[reg];
+        return reg_sizes[reg];
     }
     return 0;
 }
@@ -191,19 +191,19 @@ bool CArgument::operator==(const CArgument& c) const
     if(type != c.type) return false;
     switch(type) {
     case REGISTER:
-	return reg == c.reg;
+        return reg == c.reg;
     case MEMORY:
     case IMMEDIATE:
-	if(reloc) {
-	    if(!c.reloc || *(c.reloc) != *reloc) return false;
-	} else {
-	    if(c.reloc || immediate!=c.immediate) return false;
-	}
-	if(type==IMMEDIATE) return true;
-	return segment==c.segment && ((memory[0]==c.memory[0] && memory[1]==c.memory[1])
-				      || (memory[0]==c.memory[1] && memory[1]==c.memory[0]));
+        if(reloc) {
+            if(!c.reloc || *(c.reloc) != *reloc) return false;
+        } else {
+            if(c.reloc || immediate!=c.immediate) return false;
+        }
+        if(type==IMMEDIATE) return true;
+        return segment==c.segment && ((memory[0]==c.memory[0] && memory[1]==c.memory[1])
+                                      || (memory[0]==c.memory[1] && memory[1]==c.memory[0]));
     case LABEL:
-	return label->ip==c.label->ip;
+        return label->ip==c.label->ip;
     }
     return false;
 }
@@ -212,12 +212,12 @@ bool CArgument::operator==(const CArgument& c) const
 void CArgument::write_immed(CCodeWriter& w)
 {
     if(reloc) {
-	w.put_reloc(reloc);
+        w.put_reloc(reloc);
     }
     w.write_word(immediate);
 }
 
-// Segmentpräfix ausgeben
+// SegmentprÃ¤fix ausgeben
 static void seg_override(CCodeWriter& w, TRegister seg)
 {
     switch(seg) {
@@ -231,47 +231,47 @@ static void seg_override(CCodeWriter& w, TRegister seg)
 
 // modr/m ausgeben, wobei dieser Operand das r/m ist
 void CArgument::write_rm(CCodeWriter& w,   // wohin ausgeben?
-			 int opc,          // Opcode
-			 int areg,         // reg-Feld für modr/m
-			 bool with_seg,    // true->Segmentpräfixe ausgeben
-			 int prefix)       // !=0 ->Opcodepräfix (0x0F)
+                         int opc,          // Opcode
+                         int areg,         // reg-Feld fÃ¼r modr/m
+                         bool with_seg,    // true->SegmentprÃ¤fixe ausgeben
+                         int prefix)       // !=0 ->OpcodeprÃ¤fix (0x0F)
 {
     areg = (areg & 7) << 3;
 
     /* ich bin ein Register */
     if(type==REGISTER) {
-	if(prefix) w.wb(prefix);
-	w.wb(opc);
-	w.wb(areg | reg_values[reg] | 0xC0);
-	return;
+        if(prefix) w.wb(prefix);
+        w.wb(opc);
+        w.wb(areg | reg_values[reg] | 0xC0);
+        return;
     }
 
     if(type!=MEMORY) throw string("Instruction needs memory operand");
-    
+
     /* ich bin ein Speicheroperand */
 
     /* [disp16] */
     if(memory[0]==rNONE && memory[1]==rNONE) {
-	if(segment != rDS && with_seg) seg_override(w, segment);
-	if(prefix) w.wb(prefix);
-	w.wb(opc);
-	w.wb(areg | 6);
-	if(reloc)
-	    w.put_reloc(reloc);
-	w.write_word(immediate);
-	return;
+        if(segment != rDS && with_seg) seg_override(w, segment);
+        if(prefix) w.wb(prefix);
+        w.wb(opc);
+        w.wb(areg | 6);
+        if(reloc)
+            w.put_reloc(reloc);
+        w.write_word(immediate);
+        return;
     }
 
     /* suche Registerkombination */
     int lo = -1;
     for(int i=0; i<8; i++)
-	if((memory[0]==base_regs[i] && memory[1]==index_regs[i])
-	   || (memory[1]==base_regs[i] && memory[0]==index_regs[i])) {
-	    lo = i;
-	    break;
-	}
+        if((memory[0]==base_regs[i] && memory[1]==index_regs[i])
+           || (memory[1]==base_regs[i] && memory[0]==index_regs[i])) {
+            lo = i;
+            break;
+        }
     if(lo == -1)
-	throw string("Impossible index/base combination");
+        throw string("Impossible index/base combination");
 
     if(segment != def_seg[lo] && with_seg) seg_override(w, segment);
     if(prefix) w.wb(prefix);
@@ -279,18 +279,18 @@ void CArgument::write_rm(CCodeWriter& w,   // wohin ausgeben?
     areg |= lo;
 
     if(reloc || immediate<-128 || immediate>127) {
-	/* disp16 oder Relokation */
-	w.wb(areg | 0x80);
-	if(reloc)
-	    w.put_reloc(reloc);
-	w.write_word(immediate);
+        /* disp16 oder Relokation */
+        w.wb(areg | 0x80);
+        if(reloc)
+            w.put_reloc(reloc);
+        w.write_word(immediate);
     } else if(immediate==0 && lo!=6) {
-	/* kein disp */
-	w.wb(areg);
+        /* kein disp */
+        w.wb(areg);
     } else {
-	/* disp8 */
-	w.wb(areg | 0x40);
-	w.wb(immediate);
+        /* disp8 */
+        w.wb(areg | 0x40);
+        w.wb(immediate);
     }
 }
 
@@ -328,22 +328,22 @@ void CArgument::print(ostream& cout)
 {
     switch(type) {
     case REGISTER:
-	cout << reg_names[reg];
-	break;
+        cout << reg_names[reg];
+        break;
     case MEMORY:
-	cout << "[" << reg_names[segment] << ":";
-	for(int i=0; i<2; i++) if(memory[i]!=rNONE) cout << reg_names[memory[i]] << "+";
-	if(reloc) reloc->print(cout);
-	else cout << immediate;
-	cout << "]";
-	break;
+        cout << "[" << reg_names[segment] << ":";
+        for(int i=0; i<2; i++) if(memory[i]!=rNONE) cout << reg_names[memory[i]] << "+";
+        if(reloc) reloc->print(cout);
+        else cout << immediate;
+        cout << "]";
+        break;
     case IMMEDIATE:
-	if(reloc) reloc->print(cout);
-	else cout << immediate;
-	break;
+        if(reloc) reloc->print(cout);
+        else cout << immediate;
+        break;
     case LABEL:
-	cout << "<label:" << hex << label->ip << ">";
-	break;
+        cout << "<label:" << hex << label->ip << ">";
+        break;
     }
 }
 
@@ -366,7 +366,7 @@ CInstruction::CInstruction(TInsn which, CArgument* a1, CArgument* a2, CArgument*
 CInstruction::~CInstruction()
 {
     for(int i=0; i<3; i++)
-	delete args[i];
+        delete args[i];
 }
 
 struct CodeName {
@@ -414,12 +414,12 @@ void CInstruction::print(ostream& cout)
     cout << hex << ip << ":  " << insn_names[insn];
     if(opsize) cout << "(" << opsize << ")", x+=3;
     if(insn==I_JCC || insn==I_LABEL || insn==I_SETCC || insn==I_FLAG || insn==I_STRING)
-	cout << "`" << param << "'", x+=3;
+        cout << "`" << param << "'", x+=3;
     while(x < 10) cout << " ", x++;
 
     for(int i=0; i<3; i++) if(args[i]) {
-	if(i!=0) cout << ", ";
-	args[i]->print(cout);
+        if(i!=0) cout << ", ";
+        args[i]->print(cout);
     }
     if(insn==I_LABEL) cout << "<" << ip << ">";
     if (insn==I_FLAG || insn==I_STRING || insn==I_SETCC || insn==I_JCC) {
@@ -439,17 +439,17 @@ bool CInstruction::operator==(const CInstruction& c) const
     if((insn==I_JCC || insn==I_SETCC) && param!=c.param) return false;
     if(insn==I_LABEL && ip!=c.ip) return false;
     for(int i=0; i<insn_argc[insn]; i++) {
-	if(args[i]) {
-	    if(!c.args[i] || *(c.args[i]) != *(args[i])) return false;
-	} else {
-	    if(c.args[i]) return false;
-	}
+        if(args[i]) {
+            if(!c.args[i] || *(c.args[i]) != *(args[i])) return false;
+        } else {
+            if(c.args[i]) return false;
+        }
     }
     return true;
 }
 
 /*
- * true, wenn ich mit Bytes arbeite, false für Words,
+ * true, wenn ich mit Bytes arbeite, false fÃ¼r Words,
  * Fehler, wenn unbekannt (->Fehler des Disassemblers)
  */
 bool CInstruction::byte_insn()
@@ -467,54 +467,54 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
     switch(insn) {
     case I_LABEL: break;
     case I_INVALID:
-	throw string("Invalid insn");
+        throw string("Invalid insn");
     case I_ADD:
-	assemble_arit(w, this, 0);
-	break;
+        assemble_arit(w, this, 0);
+        break;
     case I_OR:
-	assemble_arit(w, this, 1);
-	break;
+        assemble_arit(w, this, 1);
+        break;
     case I_ADC:
-	assemble_arit(w, this, 2);
-	break;
+        assemble_arit(w, this, 2);
+        break;
     case I_SBB:
-	assemble_arit(w, this, 3);
-	break;
+        assemble_arit(w, this, 3);
+        break;
     case I_AND:
-	assemble_arit(w, this, 4);
-	break;
+        assemble_arit(w, this, 4);
+        break;
     case I_SUB:
-	assemble_arit(w, this, 5);
-	break;
+        assemble_arit(w, this, 5);
+        break;
     case I_XOR:
-	assemble_arit(w, this, 6);
-	break;
+        assemble_arit(w, this, 6);
+        break;
     case I_CMP:
-	assemble_arit(w, this, 7);
-	break;
+        assemble_arit(w, this, 7);
+        break;
     case I_CBW:
-	w.wb((char)0x98);
-	break;
+        w.wb((char)0x98);
+        break;
     case I_CWD:
-	w.wb((char)0x99);
-	break;
+        w.wb((char)0x99);
+        break;
     case I_LEAVE:
-	w.wb((char)0xC9);
-	break;
+        w.wb((char)0xC9);
+        break;
     case I_ENTER:
-	w.wb((char)0xC8);
-	if(args[0]->type != CArgument::IMMEDIATE
-	   || args[1]->type != CArgument::IMMEDIATE) throw string("Can't encode ENTER with non-const args");
-	args[0]->write_immed(w);
-	w.wb(args[1]->immediate);
-	break;
+        w.wb((char)0xC8);
+        if(args[0]->type != CArgument::IMMEDIATE
+           || args[1]->type != CArgument::IMMEDIATE) throw string("Can't encode ENTER with non-const args");
+        args[0]->write_immed(w);
+        w.wb(args[1]->immediate);
+        break;
     case I_PUSH:
-	if(args[0]->is_word_reg()) {
-	    /* push r16 */
-	    w.wb(0x50 + reg_values[args[0]->reg]);
-	} else if(args[0]->type==CArgument::IMMEDIATE) {
-	    /* push imm */
-	    if(args[0]->is_byte_imm()) {
+        if(args[0]->is_word_reg()) {
+            /* push r16 */
+            w.wb(0x50 + reg_values[args[0]->reg]);
+        } else if(args[0]->type==CArgument::IMMEDIATE) {
+            /* push imm */
+            if(args[0]->is_byte_imm()) {
                 if(do_386 && next && next->insn==I_PUSH) {
                     if(next->args[0]->is_immed() && next->args[0]->is_byte_imm() &&
                        ((next->args[0]->immediate>=0 && args[0]->is_immed(0))
@@ -527,9 +527,9 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
                         return next->next;
                     }
                 }
-		w.wb(0x6A);
-		w.wb(args[0]->immediate);
-	    } else {
+                w.wb(0x6A);
+                w.wb(args[0]->immediate);
+            } else {
                 if(do_386 && next && next->insn==I_PUSH
                    && next->args[0]->type==CArgument::IMMEDIATE && !next->args[0]->is_byte_imm()) {
                     //cout << "{1}";
@@ -540,20 +540,20 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
                     next->ip = ip;
                     return next->next;
                 }
-		w.wb(0x68);
-		args[0]->write_immed(w);
-	    }
-	} else if(args[0]->is_seg_reg()) {
-	    /* push Sr */
-	    switch(args[0]->reg) {
-	    case rES: w.wb(0x06); break;
-	    case rCS: w.wb(0x0E); break;
-	    case rSS: w.wb(0x16); break;
-	    case rDS: w.wb(0x1E); break;
-	    default: break;
-	    }
-	} else {
-	    /* push rm16 */
+                w.wb(0x68);
+                args[0]->write_immed(w);
+            }
+        } else if(args[0]->is_seg_reg()) {
+            /* push Sr */
+            switch(args[0]->reg) {
+            case rES: w.wb(0x06); break;
+            case rCS: w.wb(0x0E); break;
+            case rSS: w.wb(0x16); break;
+            case rDS: w.wb(0x1E); break;
+            default: break;
+            }
+        } else {
+            /* push rm16 */
             if(do_386 && next && next->insn==I_PUSH && next->args[0]->type==CArgument::MEMORY) {
                 args[0]->inc_imm(-2);
                 if(*args[0] == *next->args[0]) {
@@ -566,185 +566,185 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
                 }
                 args[0]->inc_imm(2);
             }
-	    args[0]->write_rm(w, 0xFF, 6);
+            args[0]->write_rm(w, 0xFF, 6);
         }
-	break;
+        break;
     case I_POP:
-	if(args[0]->is_word_reg()) {
-	    /* pop r16 */
-	    w.wb(0x58 + reg_values[args[0]->reg]);
-	} else if(args[0]->is_seg_reg()) {
-	    /* pop Sr */
-	    switch(args[0]->reg) {
-	    case rES: w.wb(0x07); break;
-	    case rCS: w.wb(0x0F); break;
-	    case rSS: w.wb(0x17); break;
-	    case rDS: w.wb(0x1F); break;
-	    default: break;
-	    }
-	} else
-	    /* pop rm16 */
-	    args[0]->write_rm(w, 0x8F, 0);
-	break;
+        if(args[0]->is_word_reg()) {
+            /* pop r16 */
+            w.wb(0x58 + reg_values[args[0]->reg]);
+        } else if(args[0]->is_seg_reg()) {
+            /* pop Sr */
+            switch(args[0]->reg) {
+            case rES: w.wb(0x07); break;
+            case rCS: w.wb(0x0F); break;
+            case rSS: w.wb(0x17); break;
+            case rDS: w.wb(0x1F); break;
+            default: break;
+            }
+        } else
+            /* pop rm16 */
+            args[0]->write_rm(w, 0x8F, 0);
+        break;
     case I_INC:
-	if(args[0]->is_word_reg()) {
-	    /* inc r16 */
-	    w.wb(0x40 + reg_values[args[0]->reg]);
-	} else if(byte_insn()) {
-	    /* inc rm8 */
-	    args[0]->write_rm(w, 0xFE, 0);
-	} else {
-	    /* inc rm16 */
-	    args[0]->write_rm(w, 0xFF, 0);
-	}
-	break;
+        if(args[0]->is_word_reg()) {
+            /* inc r16 */
+            w.wb(0x40 + reg_values[args[0]->reg]);
+        } else if(byte_insn()) {
+            /* inc rm8 */
+            args[0]->write_rm(w, 0xFE, 0);
+        } else {
+            /* inc rm16 */
+            args[0]->write_rm(w, 0xFF, 0);
+        }
+        break;
     case I_DEC:
-	if(args[0]->is_word_reg()) {
-	    /* dec r16 */
-	    w.wb(0x48 + reg_values[args[0]->reg]);
-	} else if(byte_insn()) {
-	    /* dec rm8 */
-	    args[0]->write_rm(w, 0xFE, 1);
-	} else {
-	    /* dec rm16 */
-	    args[0]->write_rm(w, 0xFF, 1);
-	}
-	break;
+        if(args[0]->is_word_reg()) {
+            /* dec r16 */
+            w.wb(0x48 + reg_values[args[0]->reg]);
+        } else if(byte_insn()) {
+            /* dec rm8 */
+            args[0]->write_rm(w, 0xFE, 1);
+        } else {
+            /* dec rm16 */
+            args[0]->write_rm(w, 0xFF, 1);
+        }
+        break;
     case I_NOT:
-	args[0]->write_rm(w, byte_insn()?0xF6:0xF7, 2);
-	break;
+        args[0]->write_rm(w, byte_insn()?0xF6:0xF7, 2);
+        break;
     case I_NEG:
-	args[0]->write_rm(w, byte_insn()?0xF6:0xF7, 3);
-	break;
+        args[0]->write_rm(w, byte_insn()?0xF6:0xF7, 3);
+        break;
     case I_MUL:
-	args[0]->write_rm(w, byte_insn()?0xF6:0xF7, 4);
-	break;
+        args[0]->write_rm(w, byte_insn()?0xF6:0xF7, 4);
+        break;
     case I_DIV:
-	args[0]->write_rm(w, byte_insn()?0xF6:0xF7, 6);
-	break;
+        args[0]->write_rm(w, byte_insn()?0xF6:0xF7, 6);
+        break;
     case I_IDIV:
-	args[0]->write_rm(w, byte_insn()?0xF6:0xF7, 7);
-	break;
+        args[0]->write_rm(w, byte_insn()?0xF6:0xF7, 7);
+        break;
     case I_IMUL:
-	if(args[1] && args[2]) {
-	    if(!args[0]->is_word_reg()
-	       || args[2]->type!=CArgument::IMMEDIATE) throw string("Invalid form of IMUL/3");
-	    if(args[2]->is_byte_imm()) {
-		/* imul r16,rm16,ib */
-		args[1]->write_rm(w, 0x6B, reg_values[args[0]->reg]);
-		w.wb(args[2]->immediate);
-	    } else {
-		/* imul r16,rm16,iw */
-		args[1]->write_rm(w, 0x69, reg_values[args[0]->reg]);
-		args[2]->write_immed(w);
-	    }
-	} else
-	    /* imul rm */
-	    args[0]->write_rm(w, byte_insn()?0xF6:0xF7, 5);
-	break;
+        if(args[1] && args[2]) {
+            if(!args[0]->is_word_reg()
+               || args[2]->type!=CArgument::IMMEDIATE) throw string("Invalid form of IMUL/3");
+            if(args[2]->is_byte_imm()) {
+                /* imul r16,rm16,ib */
+                args[1]->write_rm(w, 0x6B, reg_values[args[0]->reg]);
+                w.wb(args[2]->immediate);
+            } else {
+                /* imul r16,rm16,iw */
+                args[1]->write_rm(w, 0x69, reg_values[args[0]->reg]);
+                args[2]->write_immed(w);
+            }
+        } else
+            /* imul rm */
+            args[0]->write_rm(w, byte_insn()?0xF6:0xF7, 5);
+        break;
     case I_LES:
     case I_LDS:
     case I_LEA:
-	if(!args[0]->is_word_reg() || args[1]->type!=CArgument::MEMORY)
-	    throw string("Invalid form of LES/LDS/LEA");
-	/* lXX r16,m */
-	args[1]->write_rm(w,
-			  (insn==I_LES)?0xC4:
-			  (insn==I_LDS)?0xC5:0x8D,
-			  reg_values[args[0]->reg],
-			  insn != I_LEA);
-	break;
+        if(!args[0]->is_word_reg() || args[1]->type!=CArgument::MEMORY)
+            throw string("Invalid form of LES/LDS/LEA");
+        /* lXX r16,m */
+        args[1]->write_rm(w,
+                          (insn==I_LES)?0xC4:
+                          (insn==I_LDS)?0xC5:0x8D,
+                          reg_values[args[0]->reg],
+                          insn != I_LEA);
+        break;
     case I_XCHG:
-	if(args[0]->is_word_reg() && args[1]->is_word_reg()) {
-	    if(args[0]->reg==rAX)
-		/* xchg ax,r16 */
-		w.wb(0x90 + reg_values[args[1]->reg]);
-	    else if(args[1]->reg==rAX)
-		/* xchg r16,ax */
-		w.wb(0x90 + reg_values[args[0]->reg]);
-	    else
-		/* xchg r16,r16 */
-		args[0]->write_rm(w, 0x87, reg_values[args[1]->reg]);
-	} else if(args[0]->type==CArgument::REGISTER) {
-	    /* xchg r,rm */
-	    args[1]->write_rm(w, byte_insn()?0x86:0x87, reg_values[args[0]->reg]);
-	} else if(args[1]->type==CArgument::REGISTER) {
-	    /* xchg rm,r */
-	    args[0]->write_rm(w, byte_insn()?0x86:0x87, reg_values[args[1]->reg]);
-	} else
-	    throw string("Invalid form of XCHG");
-	break;
+        if(args[0]->is_word_reg() && args[1]->is_word_reg()) {
+            if(args[0]->reg==rAX)
+                /* xchg ax,r16 */
+                w.wb(0x90 + reg_values[args[1]->reg]);
+            else if(args[1]->reg==rAX)
+                /* xchg r16,ax */
+                w.wb(0x90 + reg_values[args[0]->reg]);
+            else
+                /* xchg r16,r16 */
+                args[0]->write_rm(w, 0x87, reg_values[args[1]->reg]);
+        } else if(args[0]->type==CArgument::REGISTER) {
+            /* xchg r,rm */
+            args[1]->write_rm(w, byte_insn()?0x86:0x87, reg_values[args[0]->reg]);
+        } else if(args[1]->type==CArgument::REGISTER) {
+            /* xchg rm,r */
+            args[0]->write_rm(w, byte_insn()?0x86:0x87, reg_values[args[1]->reg]);
+        } else
+            throw string("Invalid form of XCHG");
+        break;
     case I_MOV:
-	if(args[0]->is_seg_reg()) {
-	    /* mov Sr,rm16 */
+        if(args[0]->is_seg_reg()) {
+            /* mov Sr,rm16 */
             if (args[1]->is_seg_reg())
                 throw string("Invalid assignment of segment register (MOV sr,sr)");
-	    args[1]->write_rm(w, 0x8E, reg_values[args[0]->reg]);
-	} else if(args[1]->is_seg_reg()) {
-	    /* mov rm16,Sr */
-	    args[0]->write_rm(w, 0x8C, reg_values[args[1]->reg]);
-	} else if(args[0]->is_byte_reg()) {
-	    if(args[1]->type==CArgument::IMMEDIATE) {
-		/* mov rb,ib */
-		w.wb(0xB0 + reg_values[args[0]->reg]);
-		w.wb(args[1]->immediate);
-	    } else if(args[0]->reg==rAL && args[1]->type==CArgument::MEMORY
-		      && args[1]->memory[0]==rNONE && args[1]->memory[1]==rNONE) {
-		/* mov al,[disp16] */
-		if(args[1]->segment != rDS)
-		    seg_override(w, args[1]->segment);
-		w.wb((char)0xA0);
-		args[1]->write_immed(w);
-	    } else {
-		/* mov r8,rm8 */
-		args[1]->write_rm(w, 0x8A, reg_values[args[0]->reg]);
-	    }
-	} else if(args[0]->is_word_reg()) {
-	    if(args[1]->type==CArgument::IMMEDIATE) {
-		/* mov r16,i16 */
-		w.wb(0xB8 + reg_values[args[0]->reg]);
-		args[1]->write_immed(w);
-	    } else if(args[0]->reg==rAX && args[1]->type==CArgument::MEMORY
-		      && args[1]->memory[0]==rNONE && args[1]->memory[1]==rNONE) {
-		/* mov ax,[disp16] */
-		if(args[1]->segment != rDS)
-		    seg_override(w, args[1]->segment);
-		w.wb((char)0xA1);
-		args[1]->write_immed(w);
-	    } else {
-		/* mov r16,rm16 */
-		args[1]->write_rm(w, 0x8B, reg_values[args[0]->reg]);
-	    }
-	} else if(args[0]->type == CArgument::MEMORY) {
-	    if(args[1]->is_byte_reg()) {
-		if(args[1]->reg==rAL && args[0]->memory[0]==rNONE
-		   && args[0]->memory[1]==rNONE) {
-		    /* mov [disp16],al */
-		    if(args[0]->segment != rDS)
-			seg_override(w, args[0]->segment);
-		    w.wb((char)0xA2);
-		    args[0]->write_immed(w);
-		} else
-		    /* mov rm8,r8 */
-		    args[0]->write_rm(w, 0x88, reg_values[args[1]->reg]);
-	    } else if(args[1]->is_word_reg())
-		if(args[1]->reg==rAX && args[0]->memory[0]==rNONE
-		   && args[0]->memory[1]==rNONE) {
-		    /* mov [disp16],ax */
-		    if(args[0]->segment != rDS)
-			seg_override(w, args[0]->segment);
-		    w.wb((char)0xA3);
-		    args[0]->write_immed(w);
-		} else
-		    /* mov rm16,r16 */
-		    args[0]->write_rm(w, 0x89, reg_values[args[1]->reg]);
-	    else if(args[1]->type==CArgument::IMMEDIATE) {
-		if(byte_insn()) {
-		    /* mov rm8,i8 */
-		    args[0]->write_rm(w, 0xC6, 0);
-		    w.wb(args[1]->immediate);
-		} else {
-		    /* mov rm16,i16 */
+            args[1]->write_rm(w, 0x8E, reg_values[args[0]->reg]);
+        } else if(args[1]->is_seg_reg()) {
+            /* mov rm16,Sr */
+            args[0]->write_rm(w, 0x8C, reg_values[args[1]->reg]);
+        } else if(args[0]->is_byte_reg()) {
+            if(args[1]->type==CArgument::IMMEDIATE) {
+                /* mov rb,ib */
+                w.wb(0xB0 + reg_values[args[0]->reg]);
+                w.wb(args[1]->immediate);
+            } else if(args[0]->reg==rAL && args[1]->type==CArgument::MEMORY
+                      && args[1]->memory[0]==rNONE && args[1]->memory[1]==rNONE) {
+                /* mov al,[disp16] */
+                if(args[1]->segment != rDS)
+                    seg_override(w, args[1]->segment);
+                w.wb((char)0xA0);
+                args[1]->write_immed(w);
+            } else {
+                /* mov r8,rm8 */
+                args[1]->write_rm(w, 0x8A, reg_values[args[0]->reg]);
+            }
+        } else if(args[0]->is_word_reg()) {
+            if(args[1]->type==CArgument::IMMEDIATE) {
+                /* mov r16,i16 */
+                w.wb(0xB8 + reg_values[args[0]->reg]);
+                args[1]->write_immed(w);
+            } else if(args[0]->reg==rAX && args[1]->type==CArgument::MEMORY
+                      && args[1]->memory[0]==rNONE && args[1]->memory[1]==rNONE) {
+                /* mov ax,[disp16] */
+                if(args[1]->segment != rDS)
+                    seg_override(w, args[1]->segment);
+                w.wb((char)0xA1);
+                args[1]->write_immed(w);
+            } else {
+                /* mov r16,rm16 */
+                args[1]->write_rm(w, 0x8B, reg_values[args[0]->reg]);
+            }
+        } else if(args[0]->type == CArgument::MEMORY) {
+            if(args[1]->is_byte_reg()) {
+                if(args[1]->reg==rAL && args[0]->memory[0]==rNONE
+                   && args[0]->memory[1]==rNONE) {
+                    /* mov [disp16],al */
+                    if(args[0]->segment != rDS)
+                        seg_override(w, args[0]->segment);
+                    w.wb((char)0xA2);
+                    args[0]->write_immed(w);
+                } else
+                    /* mov rm8,r8 */
+                    args[0]->write_rm(w, 0x88, reg_values[args[1]->reg]);
+            } else if(args[1]->is_word_reg())
+                if(args[1]->reg==rAX && args[0]->memory[0]==rNONE
+                   && args[0]->memory[1]==rNONE) {
+                    /* mov [disp16],ax */
+                    if(args[0]->segment != rDS)
+                        seg_override(w, args[0]->segment);
+                    w.wb((char)0xA3);
+                    args[0]->write_immed(w);
+                } else
+                    /* mov rm16,r16 */
+                    args[0]->write_rm(w, 0x89, reg_values[args[1]->reg]);
+            else if(args[1]->type==CArgument::IMMEDIATE) {
+                if(byte_insn()) {
+                    /* mov rm8,i8 */
+                    args[0]->write_rm(w, 0xC6, 0);
+                    w.wb(args[1]->immediate);
+                } else {
+                    /* mov rm16,i16 */
                     if(do_386 && next && next->insn==I_MOV && next->args[0]->type==CArgument::MEMORY
                        && next->args[1]->type==CArgument::IMMEDIATE
                        && next->opsize == 2) {
@@ -760,77 +760,77 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
                         }
                         args[0]->inc_imm(-2);
                     }
-		    args[0]->write_rm(w, 0xC7, 0);
-		    args[1]->write_immed(w);
-		}
-	    } else
-		throw string("Invalid MOV to memory");
-	} else
-	    throw string("Invalid MOV");
-	break;
+                    args[0]->write_rm(w, 0xC7, 0);
+                    args[1]->write_immed(w);
+                }
+            } else
+                throw string("Invalid MOV to memory");
+        } else
+            throw string("Invalid MOV");
+        break;
     case I_ROL:
-	assemble_shift(w, this, 0);
-	break;
+        assemble_shift(w, this, 0);
+        break;
     case I_ROR:
-	assemble_shift(w, this, 1);
-	break;
+        assemble_shift(w, this, 1);
+        break;
     case I_RCL:
-	assemble_shift(w, this, 2);
-	break;
+        assemble_shift(w, this, 2);
+        break;
     case I_RCR:
-	assemble_shift(w, this, 3);
-	break;
+        assemble_shift(w, this, 3);
+        break;
     case I_SHL:
-	assemble_shift(w, this, 4);
-	break;
+        assemble_shift(w, this, 4);
+        break;
     case I_SHR:
-	assemble_shift(w, this, 5);
-	break;
+        assemble_shift(w, this, 5);
+        break;
     case I_SAR:
-	assemble_shift(w, this, 7);
-	break;
+        assemble_shift(w, this, 7);
+        break;
     case I_CALLF:
     case I_JMPF:
-	if(args[0]->type == CArgument::MEMORY) {
-	    /* XXXf m */
-	    args[0]->write_rm(w, 0xFF, insn==I_CALLF?3:5);
-	} else {
-	    if(args[0]->type != CArgument::IMMEDIATE || !args[0]->reloc)
-		throw string("Far transfer without relocation");
-	    /* XXXf ptr16:16 */
-	    if(insn==I_CALLF)
-		w.wb((char)0x9A);
-	    else
-		w.wb((char)0xEA);
-	    args[0]->write_immed(w);
-	    w.wb(0);
-	    w.wb(0);
-	}
-	break;
+        if(args[0]->type == CArgument::MEMORY) {
+            /* XXXf m */
+            args[0]->write_rm(w, 0xFF, insn==I_CALLF?3:5);
+        } else {
+            if(args[0]->type != CArgument::IMMEDIATE || !args[0]->reloc)
+                throw string("Far transfer without relocation");
+            /* XXXf ptr16:16 */
+            if(insn==I_CALLF)
+                w.wb((char)0x9A);
+            else
+                w.wb((char)0xEA);
+            args[0]->write_immed(w);
+            w.wb(0);
+            w.wb(0);
+        }
+        break;
     case I_RETN:
     case I_RETF:
-	if(args[0]->type != CArgument::IMMEDIATE)
-	    throw string("Invalid RET");
-	{
-	    int op = (insn==I_RETN)?0xC2:0xCA;
-	    if(args[0]->immediate==0 && !args[0]->reloc)
-		/* retX 0 */
-		w.wb(op+1);
-	    else {
-		/* retX imm16 */
-		w.wb(op);
-		args[0]->write_immed(w);
-	    }
-	}
-	break;
+        if(args[0]->type != CArgument::IMMEDIATE)
+            throw string("Invalid RET");
+        {
+            int op = (insn==I_RETN)?0xC2:0xCA;
+            if(args[0]->immediate==0 && !args[0]->reloc)
+                /* retX 0 */
+                w.wb(op+1);
+            else {
+                /* retX imm16 */
+                w.wb(op);
+                args[0]->write_immed(w);
+            }
+        }
+        break;
     case I_JCC:
     case I_JCXZ:
-	if(args[0]->type != CArgument::LABEL)
-	    throw string("JCC/JCXZ to other than label");
-	{
-	    int distance = args[0]->label->ip - (ip+2);
-	    if(distance < -128 || distance > 127) {
-		/* jcc near */
+        if(args[0]->type != CArgument::LABEL)
+            throw string("JCC/JCXZ to other than label");
+        {
+            int distance = args[0]->label->ip - (ip+2);
+            if(distance < -128 || distance > 127) {
+                /* jcc near */
                 if(insn != I_JCC)
                     throw string("JCXZ too far");
                 else if(!do_386) {
@@ -839,45 +839,45 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
                     w.wb(3);
                     w.wb((char)0xE9);
                     distance -= 3;
-		    w.wb(distance & 255);
-		    w.wb(distance >> 8);
-		} else {
-		    w.wb(0x0F);
-		    w.wb(0x80 + param);
-		    distance -= 2;
-		    w.wb(distance & 255);
-		    w.wb(distance >> 8);
-		}
-	    } else {
-		/* jcc short */
-		w.wb((insn==I_JCXZ)?0xE3:(0x70 + param));
-		w.wb(distance);
-	    }
-	}
-	break;
+                    w.wb(distance & 255);
+                    w.wb(distance >> 8);
+                } else {
+                    w.wb(0x0F);
+                    w.wb(0x80 + param);
+                    distance -= 2;
+                    w.wb(distance & 255);
+                    w.wb(distance >> 8);
+                }
+            } else {
+                /* jcc short */
+                w.wb((insn==I_JCXZ)?0xE3:(0x70 + param));
+                w.wb(distance);
+            }
+        }
+        break;
     case I_JMPN:
     case I_CALLN:
-	if(args[0]->type == CArgument::LABEL) {
-	    int distance = args[0]->label->ip - (ip+3);
-	    if(insn==I_JMPN && distance>=-129 && distance<=126) {
-		/* jmp j8 */
-		w.wb((char)0xEB);
-		w.wb(distance+1);
-	    } else {
-		/* XXX j16 */
-		w.wb(insn==I_JMPN?0xE9:0xE8);
-		w.wb(distance & 255);
-		w.wb(distance >> 8);
-	    }
-	} else if(args[0]->type==CArgument::IMMEDIATE && args[0]->reloc) {
-	    /* XXX j16 */
-	    w.wb(insn==I_JMPN?0xE9:0xE8);
-	    args[0]->write_immed(w);
-	} else if(args[0]->type==CArgument::MEMORY || args[0]->is_word_reg()) {
-	    /* XXX rm16 */
-	    args[0]->write_rm(w, 0xFF, insn==I_JMPN?4:2);
-	} else throw string("Invalid JMP/CALL near");
-	break;
+        if(args[0]->type == CArgument::LABEL) {
+            int distance = args[0]->label->ip - (ip+3);
+            if(insn==I_JMPN && distance>=-129 && distance<=126) {
+                /* jmp j8 */
+                w.wb((char)0xEB);
+                w.wb(distance+1);
+            } else {
+                /* XXX j16 */
+                w.wb(insn==I_JMPN?0xE9:0xE8);
+                w.wb(distance & 255);
+                w.wb(distance >> 8);
+            }
+        } else if(args[0]->type==CArgument::IMMEDIATE && args[0]->reloc) {
+            /* XXX j16 */
+            w.wb(insn==I_JMPN?0xE9:0xE8);
+            args[0]->write_immed(w);
+        } else if(args[0]->type==CArgument::MEMORY || args[0]->is_word_reg()) {
+            /* XXX rm16 */
+            args[0]->write_rm(w, 0xFF, insn==I_JMPN?4:2);
+        } else throw string("Invalid JMP/CALL near");
+        break;
      case I_FLAG:
         w.wb(param);
         break;
@@ -892,29 +892,29 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
         w.wb(param);
         break;
     case I_SETCC:
-	if(do_386) {
-	    args[0]->write_rm(w, 0x90+param, 0, true, 0x0F);
-	} else {
-	    if(args[0]->type != CArgument::REGISTER || args[0]->reg<rAL || args[0]->reg>rBL) {
-		throw string("Invalid SETCC insn");
-	    }
-	    /* Codiere SETCC als */
-	    /*   mov al,0 */
-	    /*   jcc $+3  */
-	    /*   inc ax   */
-	    w.wb(0xB0 + reg_values[args[0]->reg]);
-	    w.wb(0);
-	    w.wb(0x71 ^ param);
-	    w.wb(1);
-	    w.wb(0x40 + reg_values[args[0]->reg]);
-	}
-	break;
+        if(do_386) {
+            args[0]->write_rm(w, 0x90+param, 0, true, 0x0F);
+        } else {
+            if(args[0]->type != CArgument::REGISTER || args[0]->reg<rAL || args[0]->reg>rBL) {
+                throw string("Invalid SETCC insn");
+            }
+            /* Codiere SETCC als */
+            /*   mov al,0 */
+            /*   jcc $+3  */
+            /*   inc ax   */
+            w.wb(0xB0 + reg_values[args[0]->reg]);
+            w.wb(0);
+            w.wb(0x71 ^ param);
+            w.wb(1);
+            w.wb(0x40 + reg_values[args[0]->reg]);
+        }
+        break;
     }
     return next;
 }
 
 /*
- *  Liefert true, wenn Änderungen am /modify/ /keep/ beeinflussen
+ *  Liefert true, wenn Ã„nderungen am /modify/ /keep/ beeinflussen
  */
 bool alias_reg(TRegister modify, TRegister keep)
 {

@@ -9,7 +9,7 @@
  *       <codeA>
  *       <codeB>
  *       <codeA>
- *    wobei <codeB> und <codeA> sich nicht beeinflussen. Lösche zweiten
+ *    wobei <codeB> und <codeA> sich nicht beeinflussen. LÃ¶sche zweiten
  *    <codeA>.
  */
 #include <vector>
@@ -37,12 +37,12 @@ void OperandSet::fix_regs()
     DREG(rCX, rCH, rCL);
     DREG(rDX, rDH, rDL);
 #undef DREG
-    
+
     regs &= ~(1 << rNONE);
 }
 
-/* konservative Form von fix_regs: ein Register zählt nicht als
-   überschrieben, wenn nur ein Teil überschrieben wurde */
+/* konservative Form von fix_regs: ein Register zÃ¤hlt nicht als
+   Ã¼berschrieben, wenn nur ein Teil Ã¼berschrieben wurde */
 void OperandSet::fix_regs_conservative()
 {
 #define DREG(name,hi,lo)                                        \
@@ -56,7 +56,7 @@ void OperandSet::fix_regs_conservative()
     DREG(rCX, rCH, rCL);
     DREG(rDX, rDH, rDL);
 #undef DREG
-    
+
     regs &= ~(1 << rNONE);
 }
 
@@ -72,7 +72,7 @@ void OperandSet::add_op(CArgument* a, OperandSet& read)
         a->print(cout);
         cout << ")" << endl;
     }
-        
+
     switch(a->type) {
      case CArgument::REGISTER:
         regs |= (1 << a->reg);
@@ -141,7 +141,7 @@ bool is_break(CInstruction* p)
     }
 }
 
-/* Abhängigkeiten von Befehl p berechnen */
+/* AbhÃ¤ngigkeiten von Befehl p berechnen */
 void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
 {
     switch(p->insn) {
@@ -190,7 +190,7 @@ void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
      case I_DEC:
      case I_INC:
      case I_NOT:
-     case I_NEG:                       
+     case I_NEG:
         in.add_op(p->args[0]);
         out.add_op(p->args[0], in);
         out.flags = true;
@@ -293,7 +293,7 @@ void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
     }
 }
 
-/* Abhängigkeiten berechnen
+/* AbhÃ¤ngigkeiten berechnen
    Dumbfire-Version: in==gelesene Daten, out==geschriebene Daten */
 void compute_dependencies(OperandSet& in, OperandSet& out,
                           CInstruction* p, CInstruction* end)
@@ -314,7 +314,7 @@ void merge_os(OperandSet& a, const OperandSet& b)
             a.mem.push_back(*i);
 }
 
-/* Abhängigkeiten berechnen
+/* AbhÃ¤ngigkeiten berechnen
    intelligentere Version
    erzeugte Werte stehen nicht unter /in/
    (e.g., bei mov ax,3 / add ax,2 ist ax kein Eingaberegister) */
@@ -327,7 +327,7 @@ void compute_dependencies_int(OperandSet& in, OperandSet& out,
 
     OperandSet this_out;
     OperandSet this_in;
-    
+
     compute_insn_dep(this_in, this_out, p);
     /* out = out + this_out */
     /* in = (in - this_out) + this_in */
@@ -340,9 +340,9 @@ void compute_dependencies_int(OperandSet& in, OperandSet& out,
                 in.mem.erase(j);
                 break;
             }
-    
+
     merge_os(out, this_out);
-    merge_os(in, this_in);    
+    merge_os(in, this_in);
 }
 
 /* true, wenn a und b disjunkt sind */
@@ -358,7 +358,7 @@ bool check_dependencies(OperandSet& a, OperandSet& b)
     return true;
 }
 
-/* CSE durchführen, wobei a1,a2->Anfang der <codeA>-Stücken */
+/* CSE durchfÃ¼hren, wobei a1,a2->Anfang der <codeA>-StÃ¼cken */
 /* Precondition: *a1 == *a2 */
 /* les==true -> a1 ist `les foo, bar' und a2 ist `mov foo, bar'
    diese werden als identisch betrachtet. Das sollte keine Probleme
@@ -381,7 +381,7 @@ bool try_cse(CInstruction* a1, CInstruction* a2, bool /*les*/)
             had_call = true;
         OperandSet codea_read, codea_write;
         OperandSet codeb_read, codeb_write;
-        /* ist die gegebene Situation gültig? */
+        /* ist die gegebene Situation gÃ¼ltig? */
         compute_dependencies_int(codea_read, codea_write, a1, b);
         compute_dependencies(codeb_read, codeb_write, b, a2);
         codea_read.fix_regs();
@@ -421,7 +421,7 @@ cout << "\naread=" << codea_read
     }
 
     if(maxb) {
-        /* wir können was löschen */
+        /* wir kÃ¶nnen was lÃ¶schen */
         if (had_call)      /* DEBUGGING */
             cout << "@";
 #if 0
@@ -442,17 +442,17 @@ cout << "\naread=" << codea_read
         cout << endl << endl;
 #endif
 
-        /* löschen */
+        /* lÃ¶schen */
         CInstruction* p = a1;
         while(p->next != a2)
             p = p->next;
         while(p->next != a2endmax) {
             CInstruction* q = p->next;
             p->next = q->next;
-            delete q;            
+            delete q;
         }
         changed = true;
-        
+
         return true;
     }
     return false;

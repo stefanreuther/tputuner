@@ -1,5 +1,5 @@
 /*
- *  Registerallokierung für tputuner
+ *  Registerallokierung fÃ¼r tputuner
  *
  *  (c) copyright 1999 by Stefan Reuther
  */

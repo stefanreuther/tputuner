@@ -90,7 +90,7 @@ Error messages
 
   `Unrecognized opcode xx'
   `Direct interrupt access'
-  `FPU is not supported' und ähnliche
+  `FPU is not supported' und Ã¤hnliche
     TPUTUNER can't disassemble all instructions. It does not recognize
     386+ insns, `test', most flag and string insns, and port I/O.
 
@@ -351,7 +351,7 @@ Optimisations
   Depending on addresses, both `lock' assignments will be sorted at
   the beginning or end.
 
-  This optimisation is part of peephole optimisation, hence the latter 
+  This optimisation is part of peephole optimisation, hence the latter
   must be enabled when you use --sort-moves.
 
 
@@ -375,11 +375,11 @@ Optimisations
 
   This optimisation is off by default, because
   + it is slow. The common code search routine is O(n^2) at least.
-  + pointer aliasing problems are especially hard here. TPUTUNER has a 
+  + pointer aliasing problems are especially hard here. TPUTUNER has a
     simple aliasing recognition for this part (but NO aliasing checks
     for the rest!). It remains to check how hard it is to bypass it,
     when both <codeA> and <codeB> write to [es:di+10], aliasing is
-    assumed. Because Pascal has no pointer arithmetic, problems should 
+    assumed. Because Pascal has no pointer arithmetic, problems should
     be rare...
 
 
@@ -390,7 +390,7 @@ Optimisations
   unit. It must be quite conservative, though, to not destroy other
   constants (floats, for example).
 
-  NOTE 10/Oct/2000: I'll probably not finish this one. It's quite ugly 
+  NOTE 10/Oct/2000: I'll probably not finish this one. It's quite ugly
   to write, and doesn't give much.
 
 
@@ -402,7 +402,7 @@ Optimisations
   + push i32, push m32
   + mov r/m32, i32
 
-  The 32-bit insns do not appear in debug listings; they are listed as 
+  The 32-bit insns do not appear in debug listings; they are listed as
   two 16-bit insns at the same address:
         98:  push(2)   [es:di+ffffffea]
         98:  push(2)   [es:di+ffffffe8]
@@ -423,7 +423,7 @@ Optimisations
   + optimize EXE files. TPUs still have a notice which value is an
     address and which not, EXEs do not have that.
 
-  + Aliasing recognition: TPUTUNER assumes no value is accessible over 
+  + Aliasing recognition: TPUTUNER assumes no value is accessible over
     two access paths, e.g. both via a pointer and a fixed address.
     Basically, we assume all pointers were declared with the C
     `restrict' modifier and no variable is `volatile'. Turbo Pascal
@@ -473,15 +473,15 @@ Supporting the Optimizer
 
   When every byte/cycle counts...
 
-  + Simple statments / WITH: TPUTUNER generally only manages one level 
+  + Simple statments / WITH: TPUTUNER generally only manages one level
     of indirection. CSE can do more, but doesn't catch everything.
   + Assignment chains / using values directly after computing thems.
     This can re-use register values.
-  + Group variables: variables which are often used together should be 
+  + Group variables: variables which are often used together should be
     declared next to each other. So they can be initialized en bloc.
   + Declare small, frequently-used variables first (-> 8 bit displacements).
   + Declare variables that are often passed by-value in pairs next
-    each other, so they can be passed to callees an bloc: static 
+    each other, so they can be passed to callees an bloc: static
     variables/record elements as `VAR y, x:INTEGER', locals as
     `VAR x, y:INTEGER' (-> `foo(x,y)'.
 
@@ -552,7 +552,7 @@ Author, Legalese
   I use TPUTUNER for daily development work on PCC (now >80000 lines),
   so "critical" errors generally get notices. But maybe you use
   different code patterns than me, so TPUTUNER stumbles. Or the error
-  is pretty subtle. Once there was a bug that in my GUI, button labels 
+  is pretty subtle. Once there was a bug that in my GUI, button labels
   were offset by a pixel -- TPUTUNER's fault. Anyway, I consider
   TPUTUNER a pretty stable thing.
 
