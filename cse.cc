@@ -172,6 +172,7 @@ void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
         in.add_op(p->args[1]);
         out.add_op(p->args[0], in);
         out.regs |= 1 << rDS;
+        break;
      case I_XCHG:
         in.add_op(p->args[1]);
         in.add_op(p->args[0]);

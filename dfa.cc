@@ -173,7 +173,7 @@ class CValueIterator {
 };
 
 CValueIterator::CValueIterator()
-    : status(STARTING)
+    : status(STARTING), reg(), v()
 {}
 
 TValue* CValueIterator::get_next()

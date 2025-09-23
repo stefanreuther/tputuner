@@ -568,6 +568,7 @@ void register_allocation(CInstruction* oinsn)
          case I_CALLF:
             if(stackcheck == 3 && p->next && p->next->insn == I_SUB)
                 break;
+            /* FALLTHROUGH */
          case I_LEA:
          case I_CALLN:
          case I_STRING:

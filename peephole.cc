@@ -226,7 +226,7 @@ TAction check_zerotest(CInstruction* p)
 TAction check_zerotest_jb(CInstruction* p)
 {
     if(((p->insn==I_AND || p->insn==I_OR) && *p->args[0]==*p->args[1])
-       || p->insn==I_CMP && p->args[1]->is_immed(0)) {
+       || (p->insn==I_CMP && p->args[1]->is_immed(0))) {
         CInstruction* n = p->next;
         if(n->insn==I_JCC && (n->param==3 || n->param==2)) {
             /* Nulltest + jb/jnb */
@@ -357,10 +357,11 @@ static bool arg_compare(CArgument* l, CArgument* r)
             return false;
         } else
             return l->immediate > r->immediate;
-    } else
+    } else {
         if(t1 == 2 || t2 == 2)  // Aliasing-Probleme!
             return false;
         return (t1 > t2);
+    }
 }
 
 /* true, wenn die Instruktionen von /p/ an auf Speicher zugreifen */

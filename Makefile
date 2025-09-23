@@ -3,7 +3,7 @@
 #
 
 EXENAME := tputuner
-CFLAGS := -Wall -ansi -pedantic -O2 -g
+CFLAGS := -Wall -W -ansi -pedantic -O2 -g
 
 ifdef DJDIR
 GCC := gxx

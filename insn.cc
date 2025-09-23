@@ -493,16 +493,16 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
 	assemble_arit(w, this, 7);
 	break;
     case I_CBW:
-	w.wb(0x98);
+	w.wb((char)0x98);
 	break;
     case I_CWD:
-	w.wb(0x99);
+	w.wb((char)0x99);
 	break;
     case I_LEAVE:
-	w.wb(0xC9);
+	w.wb((char)0xC9);
 	break;
     case I_ENTER:
-	w.wb(0xC8);
+	w.wb((char)0xC8);
 	if(args[0]->type != CArgument::IMMEDIATE
 	   || args[1]->type != CArgument::IMMEDIATE) throw string("Can't encode ENTER with non-const args");
 	args[0]->write_immed(w);
@@ -693,7 +693,7 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
 		/* mov al,[disp16] */
 		if(args[1]->segment != rDS)
 		    seg_override(w, args[1]->segment);
-		w.wb(0xA0);
+		w.wb((char)0xA0);
 		args[1]->write_immed(w);
 	    } else {
 		/* mov r8,rm8 */
@@ -709,7 +709,7 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
 		/* mov ax,[disp16] */
 		if(args[1]->segment != rDS)
 		    seg_override(w, args[1]->segment);
-		w.wb(0xA1);
+		w.wb((char)0xA1);
 		args[1]->write_immed(w);
 	    } else {
 		/* mov r16,rm16 */
@@ -722,7 +722,7 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
 		    /* mov [disp16],al */
 		    if(args[0]->segment != rDS)
 			seg_override(w, args[0]->segment);
-		    w.wb(0xA2);
+		    w.wb((char)0xA2);
 		    args[0]->write_immed(w);
 		} else
 		    /* mov rm8,r8 */
@@ -733,7 +733,7 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
 		    /* mov [disp16],ax */
 		    if(args[0]->segment != rDS)
 			seg_override(w, args[0]->segment);
-		    w.wb(0xA3);
+		    w.wb((char)0xA3);
 		    args[0]->write_immed(w);
 		} else
 		    /* mov rm16,r16 */
@@ -799,9 +799,9 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
 		throw string("Far transfer without relocation");
 	    /* XXXf ptr16:16 */
 	    if(insn==I_CALLF)
-		w.wb(0x9A);
+		w.wb((char)0x9A);
 	    else
-		w.wb(0xEA);
+		w.wb((char)0xEA);
 	    args[0]->write_immed(w);
 	    w.wb(0);
 	    w.wb(0);
@@ -837,7 +837,7 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
                     /* inverse conditional */
                     w.wb(0x71 ^ param);
                     w.wb(3);
-                    w.wb(0xE9);
+                    w.wb((char)0xE9);
                     distance -= 3;
 		    w.wb(distance & 255);
 		    w.wb(distance >> 8);
@@ -861,7 +861,7 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
 	    int distance = args[0]->label->ip - (ip+3);
 	    if(insn==I_JMPN && distance>=-129 && distance<=126) {
 		/* jmp j8 */
-		w.wb(0xEB);
+		w.wb((char)0xEB);
 		w.wb(distance+1);
 	    } else {
 		/* XXX j16 */
