@@ -21,6 +21,7 @@
 bool changed;
 char* global_code_ptr;
 int global_code_id;
+string unit_name;
 
 /* This enables an older version of stack-frame removal, which
    predates the current version. The current one is somewhat cleaner,
@@ -246,18 +247,20 @@ CCWCounter* recalc_offsets(CInstruction* insn)
 /*
  *  Debug dump
  */
-void write_file(int id, int pass, CInstruction* insn)
+void write_file(int id, int pass, CInstruction* insn, CEntryBlock* entry)
 {
     char filename[100];
 
 #ifdef __MSDOS__
-    sprintf(filename, "block%x.p%d", id, pass);
+    sprintf(filename, "block%03x.p%d", id, pass);
 #else
-    sprintf(filename, "block%x.pass%d", id, pass);
+    sprintf(filename, "block%03x.pass%d", id, pass);
 #endif
 
     ofstream f(filename);
 
+    if(entry->name.length())
+        f << "// function: " << entry->name << endl;
     while(insn) {
         insn->print(f);
         insn = insn->next;
@@ -800,12 +803,13 @@ CInstruction* translate286(CInstruction* insn)
  *  my_offset = IP on entry to code
  *  relo = pointer to relocations
  *  relo_count = number of table entries, 8 bytes each
+ *  entry = for function name, if available
  *
  *  Returns CNewCode object if successful, 0 on failure
  */
 CNewCode* do_optimize(int id,
                       char* code, int code_size, int my_offset,
-                      char* relo, int relo_count)
+                      char* relo, int relo_count, CEntryBlock* entry)
 {
     global_code_ptr = code;
     global_code_id  = id;
@@ -820,7 +824,7 @@ CNewCode* do_optimize(int id,
         delete w;
         changed = false;
         if(do_dumps)
-            write_file(id, pass, insn);
+            write_file(id, pass, insn, entry);
         pass++;
         insn = translate286(insn);
         if(do_the_cse)
@@ -857,7 +861,7 @@ CNewCode* do_optimize(int id,
         insn = try_remove_frame_pointer(insn);
         w = recalc_offsets(insn);
         if (do_dumps) {
-            write_file(id, pass, insn);
+            write_file(id, pass, insn, entry);
         }
     }
 

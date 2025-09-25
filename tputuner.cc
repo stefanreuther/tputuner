@@ -138,7 +138,7 @@ void CCodeBlock::optimize()
         new_code = do_optimize(id,
                                unit + code_ofs /*+ entry->entry_ofs*/, code_size - entry->entry_ofs,
                                entry->entry_ofs,
-                               unit + relo_ofs, relo_count);
+                               unit + relo_ofs, relo_count, entry);
 
         if(new_code) {
             /* Optimierung OK: Code und CS-Consts verbinden */
@@ -198,6 +198,7 @@ bool load_unit(char* filename)
         delete[] unit;
         return false;
     }
+    unit_name.assign(&unit[ofs_this_unit]+2, (size_t)unit[ofs_this_unit+1]);
 
     ofs_this_unit = ofs_this_unit + 2 + unit[ofs_this_unit+1];
 
@@ -480,7 +481,7 @@ TOption options[] = {
     { 'j', "reduce-jump-chains", &do_jumpchains,   "remove jump chains" },
     { 'p', "peephole-optimizations", &do_peephole, "replace insns by simpler ones" },
     { 'u', "remove-unused-code", &do_remunused,    "remove unreferenced code" },
-    { 'd', "debug-dump", &do_dumps,                "produce debug dumps (files blockX.passY)" },
+    { 'd', "debug-dump", &do_dumps,                "produce debug dumps (files blockXXX.passY)" },
     { 'n', "names", &do_names,                     "read symbols and show function names" },
     { 's', "size", &do_size,                       "optimize for small size, not speed" },
     { 'e', "early-jump", &do_early_jmp,            "jump earlier to re-use identical code" },
@@ -618,6 +619,7 @@ int main(int argc, char* argv[])
     /* und action! */
     cout << "loading unit..." << endl;
     if(!load_unit(infile)) return 1;
+    cout << "Unit " << unit_name << endl;
 
     cout << "analyzing headers..." << endl;
     create_objects();
