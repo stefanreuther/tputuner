@@ -134,7 +134,9 @@ bool is_break(CInstruction* p)
      case I_INVALID:
      case I_LABEL:
      case I_CALLN:
-     case I_STRING:             // handle these like calls
+     case I_STRING:
+     case I_IN:
+     case I_OUT:                // handle these like calls
         return true;
      default:
         return false;
@@ -187,12 +189,37 @@ void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
         in.add_op(p->args[0]);
         in.stack = true;
         break;
+     case I_POPF:
+        out.stack = true;
+        break;
+     case I_PUSHF:
+        in.flags = true;
+        in.stack = true;
+        break;
+     case I_POPA:
+        out.regs |= (1 << rAX) | (1 << rBX) | (1 << rCX) | (1 << rDX)
+                  | (1 << rSP) | (1 << rBP) | (1 << rSI) | (1 << rDI);
+        break;
+     case I_PUSHA:
+        in.regs |= (1 << rAX) | (1 << rBX) | (1 << rCX) | (1 << rDX)
+                 | (1 << rSP) | (1 << rBP) | (1 << rSI) | (1 << rDI);
+        break;
      case I_DEC:
      case I_INC:
      case I_NOT:
      case I_NEG:
         in.add_op(p->args[0]);
         out.add_op(p->args[0], in);
+        out.flags = true;
+        break;
+     case I_BCD:
+        if(p->opsize == 1) {
+            in.regs |= (1 << rAL);
+            out.regs |= (1 << rAL);
+        } else {
+            in.regs |= (1 << rAX);
+            out.regs |= (1 << rAX);
+        }
         out.flags = true;
         break;
      case I_SBB:
@@ -214,6 +241,7 @@ void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
         out.add_op(p->args[0], in);
         /* FALLTHROUGH */
      case I_CMP:
+     case I_TEST:
         in.add_op(p->args[0]);
         in.add_op(p->args[1]);
         out.flags = true;
@@ -261,6 +289,11 @@ void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
      case I_RETN:
      case I_RETF:
         break;
+     case I_LOOP:
+        if(p->param != 2)
+            in.flags = true;
+        out.regs |= (1 << rCX);
+        /* FALLTHROUGH */
      case I_JCXZ:
         in.regs |= (1 << rCX);
         break;
@@ -273,6 +306,10 @@ void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
         out.regs |= (1 << rAX);
         out.regs |= (1 << rDX);
         break;
+     case I_XLAT:
+        in.regs |= (1 << rAL) | (1 << rBX);
+        out.regs |= (1 << rAL);
+        break;
      case I_ENTER:
      case I_LEAVE:
         in.regs |= (1 << rSP);
@@ -284,11 +321,35 @@ void compute_insn_dep(OperandSet& in, OperandSet& out, CInstruction* p)
         out.add_op(p->args[0], in);
         in.flags = true;
         break;
+     case I_SETALC:
+        in.flags = true;
+        out.regs |= (1 << rAL);
+        break;
      case I_STRING:
         // FIXME: this does not happen
         break;
      case I_FLAG:
-        // right now, only cld/std which do not change flags that we look at
+        out.flags = true;
+        break;
+     case I_LAHF:
+        in.flags = true;
+        out.regs |= (1 << rAH);
+        break;
+     case I_SAHF:
+        in.regs |= (1 << rAH);
+        out.flags = true;
+        break;
+     case I_IN:
+        in.add_op(p->args[1]);
+        out.add_op(p->args[0], in);
+        break;
+     case I_OUT:
+        in.add_op(p->args[0]);
+        in.add_op(p->args[1]);
+        break;
+     case I_MAX:
+     case I_LOCK:
+     case I_HLT:
         break;
     }
 }

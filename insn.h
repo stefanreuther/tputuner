@@ -19,12 +19,12 @@ typedef enum { rNONE,
                rES, rCS, rSS, rDS,
                rMAX } TRegister;
 
-extern char reg_sizes[];
-extern char reg_values[];
+extern char reg_sizes[rMAX];
+extern char reg_values[rMAX];
 extern const TRegister base_regs[8];
 extern const TRegister index_regs[8];
 extern const TRegister def_seg[8];
-extern const char*const reg_names[];
+extern const char*const reg_names[rMAX];
 
 /*** Relozierung ***/
 struct CRelo {
@@ -89,29 +89,40 @@ typedef enum { I_INVALID,
                I_LABEL,
                I_MOV, I_LES, I_LDS, I_XCHG, I_LEA,
 
-               I_POP, I_PUSH,
+               I_POP, I_PUSH, I_POPF, I_PUSHF, I_POPA, I_PUSHA,
 
                I_DEC, I_INC,
-               I_ADD, I_OR, I_ADC, I_SBB, I_AND, I_SUB, I_XOR, I_CMP,
+               I_ADD, I_OR, I_ADC, I_SBB, I_AND, I_SUB, I_XOR, I_CMP, I_TEST,
                I_IMUL, I_MUL, I_DIV, I_IDIV,
                I_NOT, I_NEG,
+               I_BCD,
 
                I_JCC, I_CALLF, I_CALLN, I_JMPN, I_JMPF, I_RETN, I_RETF,
-               I_JCXZ,
+               I_JCXZ, I_LOOP,
 
-               I_CBW, I_CWD,
+               I_CBW, I_CWD, I_XLAT,
 
                I_ROL, I_ROR, I_RCL, I_RCR, I_SHL, I_SHR, I_SAR,
 
                I_LEAVE, I_ENTER,
 
                I_FLAG, I_STRING,
+               I_IN, I_OUT,
 
-               I_SETCC
+               I_SETCC, I_SETALC, I_LAHF, I_SAHF,
+
+               I_LOCK, I_HLT,
+
+               I_MAX
 } TInsn;
 
 /* opcodes for certain special insns */
 enum {
+    CODE_CMC   = 0xF5,
+    CODE_CLC   = 0xF8,
+    CODE_STC   = 0xF9,
+    CODE_CLI   = 0xFA,
+    CODE_STI   = 0xFB,
     CODE_CLD   = 0xFC,
     CODE_STD   = 0xFD,
     CODE_REP   = 0xF3,
@@ -125,7 +136,17 @@ enum {
     CODE_LODSB = 0xAC,
     CODE_LODSW = 0xAD,
     CODE_SCASB = 0xAE,
-    CODE_SCASW = 0xAF
+    CODE_SCASW = 0xAF,
+    CODE_INSB  = 0x6C,
+    CODE_INSW  = 0x6D,
+    CODE_OUTSB = 0x6E,
+    CODE_OUTSW = 0x6F,
+    CODE_DAA   = 0x27,
+    CODE_DAS   = 0x2F,
+    CODE_AAA   = 0x37,
+    CODE_AAS   = 0x3F,
+    CODE_AAM   = 0xD4,
+    CODE_AAD   = 0xD5
 };
 
 enum {          // condition codes

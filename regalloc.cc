@@ -20,22 +20,24 @@ struct TEstimate {
     TEstimate(CArgument* a);
 };
 
-int changeable_args[] = {
-    0,
-    0,
+int changeable_args[I_MAX] = {
+    0,                          // invalid
+    0,                          // label
     2, 2, 2, 2, 2,              // Transfer
-    1, 1,                       // push/pop
-    1, 1,                       // inc/dec
-    2, 2, 2, 2, 2, 2, 2, 2,     // Arithmetik
-    2, 1, 1, 1,                 // mul/div
-    1, 1,                       // not/neg
-    0, 0, 0, 0, 0, 0, 0,        // Programmtransfer
-    0,
-    0, 0,                       // cbw/cwd
+    1, 1, 0, 0, 0, 0,           // PUSH/POP
+    1, 1,                       // INC/DEC
+    2, 2, 2, 2, 2, 2, 2, 2, 2,  // Arithmetik
+    2, 1, 1, 1,                 // MUL/DIV
+    1, 1,                       // NOT/NEG
+    1,                          // BCD
+    0, 0, 0, 0, 0, 0, 0, 0, 0,  // Programmtransfer
+    0, 0, 0,                    // CBW/CWD/XLAT
     1, 1, 1, 1, 1, 1, 1,        // Shifts
-    0, 0,                       // leave/enter
-    0, 0,                       // flag, string
-    1                           // setcc
+    0, 0,                       // LEAVE/ENTER
+    0, 0,                       // flag/string
+    0, 0,                       // port
+    1, 0, 0, 0,                 // SETcc
+    0, 0,                       // LOCK/HLT
 };
 
 
@@ -202,7 +204,7 @@ void estimate_insn(CInstruction* insn, bool znd)
         estimate_read(insn->args[1], !insn->args[0]->is_reg(rAX), !insn->args[0]->is_reg(rAX), znd);
         estimate_write(insn->args[0], znd);
         break;
-     case I_CMP:
+     case I_CMP: case I_TEST:
         /* Zwei Quelloperanden */
         estimate_read(insn->args[1], !insn->args[0]->is_reg(rAX), !insn->args[0]->is_reg(rAX), znd);
         estimate_read(insn->args[0], false, true, znd);
@@ -237,7 +239,8 @@ void estimate_insn(CInstruction* insn, bool znd)
         /* der 2. Operand kann nicht by-value verwendet werden */
         estimate_write(insn->args[1], znd);
         break;
-     default:;
+     default:
+        break;
     }
 }
 
@@ -578,6 +581,7 @@ void register_allocation(CInstruction* oinsn)
             break;
          default:
             stackcheck = 0;
+            break;
         }
         for(int i = 0; i < 3; i++)
             if(p->args[i])

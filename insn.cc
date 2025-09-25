@@ -20,34 +20,33 @@ const TRegister base_regs[8] = { rBX, rBX, rBP, rBP, rSI, rDI, rBP, rBX };
 const TRegister index_regs[8] = { rSI, rDI, rSI, rDI, rNONE, rNONE, rNONE, rNONE };
 const TRegister def_seg[8] = { rDS, rDS, rSS, rSS, rDS, rDS, rSS, rDS };
 
-char reg_sizes[] = { 0,
+char reg_sizes[rMAX] = { 0,
                      2, 2, 2, 2, 2, 2, 2, 2,
                      1, 1, 1, 1, 1, 1, 1, 1,
-                     2, 2, 2, 2,
-                     0 };
+                     2, 2, 2, 2 };
 
-char reg_values[] = { 0,
+char reg_values[rMAX] = { 0,
                       0, 1, 2, 3, 4, 5, 6, 7,
                       0, 1, 2, 3, 4, 5, 6, 7,
-                      0, 1, 2, 3,
-                      0 };
+                      0, 1, 2, 3 };
 
-const char*const insn_names[] = {
+const char*const insn_names[I_MAX] = {
     "INVALID",
     "label",
     "mov", "les", "lds", "xchg", "lea",
 
-    "pop", "push",
+    "pop", "push", "popf", "pushf", "popa", "pusha",
 
     "dec", "inc",
-    "add", "or", "adc", "sbb", "and", "sub", "xor", "cmp",
+    "add", "or", "adc", "sbb", "and", "sub", "xor", "cmp", "test",
     "imul", "mul", "div", "idiv",
     "not", "neg",
+    "bcd",
 
     "jcc", "callf", "calln", "jmpn", "jmpf", "retn", "retf",
-    "jcxz",
+    "jcxz", "loop",
 
-    "cbw", "cwd",
+    "cbw", "cwd", "xlat",
 
     "rol", "ror", "rcl", "rcr", "shl", "shr", "sar",
 
@@ -55,27 +54,35 @@ const char*const insn_names[] = {
 
     "flag", "string",
 
-    "setcc"
+    "in", "out",
+
+    "setcc", "setalc", "lahf", "sahf",
+
+    "lock", "hlt"
 };
 
 /* Anzahl signifikante Operanden pro Befehl */
-char insn_argc[] = {
+char insn_argc[I_MAX] = {
     0,                          // invalid
     0,                          // label
     2,2,2,2,2,                  // daten-transfer
-    1,1,                        // Stack
+
+    1,1,0,0,0,0,                // Stack
     1,1,                        // inc/dec
-    2,2,2,2,2,2,2,2,            // arit
+    2,2,2,2,2,2,2,2,2,          // arit
     3,1,1,1,                    // unary (imul kann 3 Operanden haben)
-    1,1,                        // unary
-    1,1,1,1,1,1,1,1,            // programm-transfer
-    0,0,                        // cbw/cwd
+    1,1,1,                      // unary
+    1,1,1,1,1,1,1,1,1,          // programm-transfer
+    0,0,0,                      // cbw/cwd/xlat
     2,2,2,2,2,2,2,              // shift
     0,2,                        // enter/leave
-    1                           // setcc
+    0,0,                        // flag/string
+    1,1,                        // port
+    1,0,0,0,                    // setcc/setalc/lahf/sahf
+    0,0                         // lock/hlt
 };
 
-const char*const reg_names[] = {
+const char*const reg_names[rMAX] = {
     "NONE",
     "ax", "cx", "dx", "bx", "sp", "bp", "si", "di",
     "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh",
@@ -390,6 +397,11 @@ static CodeName code_names[] = {
     { 13, "cc = 'nl'" },
     { 14, "cc = 'ng'" },
     { 15, "cc = 'g'" },
+    { CODE_CMC, "cmc" },
+    { CODE_CLC, "clc" },
+    { CODE_STC, "stc" },
+    { CODE_CLI, "cli" },
+    { CODE_STI, "sti" },
     { CODE_CLD, "cld" },
     { CODE_STD, "std" },
     { CODE_REP, "rep" },
@@ -404,6 +416,16 @@ static CodeName code_names[] = {
     { CODE_SCASW, "scasw" },
     { CODE_STOSB, "stosb" },
     { CODE_STOSW, "stosw" },
+    { CODE_INSB , "insb"  },
+    { CODE_INSW , "insw"  },
+    { CODE_OUTSB, "outsb" },
+    { CODE_OUTSW, "outsw" },
+    { CODE_DAA  , "daa"   },
+    { CODE_DAS  , "das"   },
+    { CODE_AAA  , "aaa"   },
+    { CODE_AAS  , "aas"   },
+    { CODE_AAM  , "aam"   },
+    { CODE_AAD  , "aad"   },
     { 0, 0 }
 };
 
@@ -413,7 +435,7 @@ void CInstruction::print(ostream& cout)
     int x = strlen(insn_names[insn]);
     cout << hex << ip << ":  " << insn_names[insn];
     if(opsize) cout << "(" << opsize << ")", x+=3;
-    if(insn==I_JCC || insn==I_LABEL || insn==I_SETCC || insn==I_FLAG || insn==I_STRING)
+    if(insn==I_JCC || insn==I_LOOP || insn==I_LABEL || insn==I_SETCC || insn==I_FLAG || insn==I_STRING)
         cout << "`" << param << "'", x+=3;
     while(x < 10) cout << " ", x++;
 
@@ -429,6 +451,13 @@ void CInstruction::print(ostream& cout)
         if (c->name)
             cout << "    // " << c->name;
     }
+    if (insn==I_LOOP) {
+        switch (param) {
+         case 0: cout << "    // loopnz"; break;
+         case 1: cout << "    // loopz";  break;
+         case 2: cout << "    // loop";   break;
+        }
+    }
     cout << dec << endl;
 }
 
@@ -436,7 +465,7 @@ bool CInstruction::operator==(const CInstruction& c) const
 {
     if(insn != c.insn) return false;
     if(opsize && c.opsize && opsize!=c.opsize) return false;
-    if((insn==I_JCC || insn==I_SETCC) && param!=c.param) return false;
+    if((insn==I_JCC || insn==I_SETCC || insn==I_LOOP || insn==I_STRING || insn==I_FLAG) && param!=c.param) return false;
     if(insn==I_LABEL && ip!=c.ip) return false;
     for(int i=0; i<insn_argc[insn]; i++) {
         if(args[i]) {
@@ -489,6 +518,9 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
     case I_XOR:
         assemble_arit(w, this, 6);
         break;
+    case I_TEST:
+        assemble_arit(w, this, 0);
+        break;
     case I_CMP:
         assemble_arit(w, this, 7);
         break;
@@ -498,13 +530,22 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
     case I_CWD:
         w.wb((char)0x99);
         break;
+    case I_XLAT:
+        w.wb((char)0xD7);
+        break;
     case I_LEAVE:
+        if(!do_286)
+           // shouldn't happen
+           throw string("Can't encode LEAVE for 8086");
         w.wb((char)0xC9);
         break;
     case I_ENTER:
-        w.wb((char)0xC8);
+        if(!do_286)
+            // shouldn't happen
+            throw string("Can't encode ENTER for 8086");
         if(args[0]->type != CArgument::IMMEDIATE
            || args[1]->type != CArgument::IMMEDIATE) throw string("Can't encode ENTER with non-const args");
+        w.wb((char)0xC8);
         args[0]->write_immed(w);
         w.wb(args[1]->immediate);
         break;
@@ -515,6 +556,8 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
         } else if(args[0]->type==CArgument::IMMEDIATE) {
             /* push imm */
             if(args[0]->is_byte_imm()) {
+                if(!do_286)
+                    throw string("Can't encode PUSH imm for 8086");
                 if(do_386 && next && next->insn==I_PUSH) {
                     if(next->args[0]->is_immed() && next->args[0]->is_byte_imm() &&
                        ((next->args[0]->immediate>=0 && args[0]->is_immed(0))
@@ -530,6 +573,8 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
                 w.wb(0x6A);
                 w.wb(args[0]->immediate);
             } else {
+                if(!do_286)
+                    throw string("Can't encode PUSH imm for 8086");
                 if(do_386 && next && next->insn==I_PUSH
                    && next->args[0]->type==CArgument::IMMEDIATE && !next->args[0]->is_byte_imm()) {
                     //cout << "{1}";
@@ -586,6 +631,24 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
             /* pop rm16 */
             args[0]->write_rm(w, 0x8F, 0);
         break;
+    case I_PUSHF:
+        w.wb((char)0x9C);
+        break;
+    case I_POPF:
+        w.wb((char)0x9D);
+        break;
+    case I_PUSHA:
+        if(!do_286)
+            // shouldn't happen
+            throw string("Can't encode PUSHA for 8086");
+        w.wb(0x60);
+        break;
+    case I_POPA:
+        if(!do_286)
+            // shouldn't happen
+            throw string("Can't encode POPA for 8086");
+        w.wb(0x61);
+        break;
     case I_INC:
         if(args[0]->is_word_reg()) {
             /* inc r16 */
@@ -613,6 +676,14 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
     case I_NOT:
         args[0]->write_rm(w, byte_insn()?0xF6:0xF7, 2);
         break;
+    case I_BCD:
+        w.wb(param);
+        if(param>=0xD4 && param<=0xD5) {
+            if(!args[0] || !args[0]->is_byte_imm())
+                throw string("Invalid form of AAM/AAD");
+            w.wb(args[0]->immediate);
+        }
+        break;
     case I_NEG:
         args[0]->write_rm(w, byte_insn()?0xF6:0xF7, 3);
         break;
@@ -627,6 +698,8 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
         break;
     case I_IMUL:
         if(args[1] && args[2]) {
+            if(!do_286)
+                throw string("Can't encode IMUL for 8086");
             if(!args[0]->is_word_reg()
                || args[2]->type!=CArgument::IMMEDIATE) throw string("Invalid form of IMUL/3");
             if(args[2]->is_byte_imm()) {
@@ -825,14 +898,15 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
         break;
     case I_JCC:
     case I_JCXZ:
+    case I_LOOP:
         if(args[0]->type != CArgument::LABEL)
-            throw string("JCC/JCXZ to other than label");
+            throw string("JCC/JCXZ/LOOP to other than label");
         {
             int distance = args[0]->label->ip - (ip+2);
             if(distance < -128 || distance > 127) {
                 /* jcc near */
                 if(insn != I_JCC)
-                    throw string("JCXZ too far");
+                    throw string("JCXZ/LOOP too far");
                 else if(!do_386) {
                     /* inverse conditional */
                     w.wb(0x71 ^ param);
@@ -850,7 +924,9 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
                 }
             } else {
                 /* jcc short */
-                w.wb((insn==I_JCXZ)?0xE3:(0x70 + param));
+                w.wb((insn==I_JCXZ)?0xE3:
+                     (insn==I_LOOP)?(0xE0 + param):
+                                    (0x70 + param));
                 w.wb(distance);
             }
         }
@@ -882,6 +958,8 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
         w.wb(param);
         break;
      case I_STRING:
+        if(!do_286 && (param>=0x6C && param<=0x6F))
+            throw string("Can't encode INS/OUTS for 8086");
         if (args[0]->type != CArgument::IMMEDIATE || args[0]->reloc
             || args[1]->type != CArgument::REGISTER)
             throw string("Invalid string insn");
@@ -908,6 +986,40 @@ CInstruction* CInstruction::assemble(CCodeWriter& w)
             w.wb(1);
             w.wb(0x40 + reg_values[args[0]->reg]);
         }
+        break;
+    case I_SETALC:
+        w.wb((char)0xD6);
+        break;
+    case I_SAHF:
+        w.wb((char)0x9E);
+        break;
+    case I_LAHF:
+        w.wb((char)0x9F);
+        break;
+    case I_IN:
+    case I_OUT: {
+        int opcode_offset=((insn==I_OUT)?2:0)+((opsize==2)?1:0);
+        if(args[0]->type != CArgument::REGISTER || (args[0]->reg!=rAL && args[0]->reg!=rAX))
+            throw string("Invalid port insn");
+        if(args[1]->is_word_reg()) {
+            if(args[1]->reg != rDX)
+                throw string("Invalid port insn");
+            /* IN r,DX / OUT DX,r */
+            w.wb(0xEC + opcode_offset);
+        } else if(args[1]->type == CArgument::IMMEDIATE) {
+            /* IN r,i8 / OUT i8,r */
+            w.wb(0xE4 + opcode_offset);
+            w.wb(args[1]->immediate);
+        } else throw string("Invalid port insn");
+        break;
+    }
+    case I_LOCK:
+        w.wb((char)0xF0);
+        break;
+    case I_HLT:
+        w.wb((char)0xF4);
+        break;
+    case I_MAX:
         break;
     }
     return next;

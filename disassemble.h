@@ -9,6 +9,6 @@
 #include "insn.h"
 
 CInstruction* disassemble(char* acode, int code_size, int my_offset,
-                          char* _relo, int _relo_count);
+                          char* _relo, int _relo_count, bool do_extra);
 
 #endif

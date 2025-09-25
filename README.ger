@@ -57,9 +57,21 @@ Aufruf
        teilweise Befehle erzeugt, die langsamer sind (i.a. mehr
        Speicherzugriffe), aber weniger Code benötigen.
 
+  -x, --extra
+       Verarbeite zusätzliche Instruktionen. Mit dieser Option erkennt
+       tputuner (fast) alle normalen 286-Instruktionen, inklusive derer,
+       die der Compiler nicht erzeugt (z.B. `in`, `xlat`). Damit werden
+       auch die meisten `asm`-Blöcke verarbeitet. Deshalb ist diese
+       Option standardmäßig inaktiv, und die Prozeduren, die diese
+       Instruktionen nutzen, werden mit einem Fehler zurückgewiesen und
+       ignoriert.
+
+  -2, --286
   -3, --386
-       Erlaubt die Nutzung von 386-Befehlen. Standardmäßig liest und
-       schreibt TPUTUNER 286er-Code.
+       Erlaubt die Nutzung von 286 bzw. 386-Befehlen. Standardmäßig liest
+       und schreibt TPUTUNER 286er-Code. Wenn 286er-Befehle deaktiviert
+       sind, werden sie in 8086-Befehle zerlegt, wodurch der Code größer
+       werden kann.
 
 
 Statusmeldungen

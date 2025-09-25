@@ -68,7 +68,7 @@ TAction check_nop(CInstruction* p)
     if((p->insn==I_MOV || p->insn==I_XCHG)
        && *p->args[0]==*p->args[1])
         return A_DELETE;   /* Selbstzuweisung */
-    if((p->insn==I_JCC || p->insn==I_JCXZ || p->insn==I_JMPN)
+    if((p->insn==I_JCC || p->insn==I_JCXZ || p->insn==I_LOOP || p->insn==I_JMPN)
        && p->args[0]->type==CArgument::LABEL
        && p->args[0]->label==p->next)
         /* jmp $+2 in allen Geschmacksrichtungen */
@@ -709,16 +709,17 @@ TAction check_push_reg(CInstruction* p)
  */
 TAction check_shift(CInstruction* p)
 {
-    if(p->insn == I_SHL && p->args[1]->type == CArgument::IMMEDIATE
-       && !p->args[1]->reloc) {
-        if(p->next->insn == I_SHL
-           && p->next->args[1]->type == CArgument::IMMEDIATE
-           && !p->next->args[1]->reloc
-           && *p->args[0] == *p->next->args[0]) {
+    if((p->insn == I_SHL || p->insn == I_SHR || p->insn == I_ROL || p->insn == I_ROR
+        || p->insn == I_RCL || p->insn == I_RCR || p->insn == I_SAR)
+       && p->args[1]->is_immed()) {
+        if(do_286 && p->next->insn == p->insn
+           && p->next->args[1]->is_immed()
+           && *p->args[0] == *p->next->args[0]
+           && p->next->args[1]->immediate + p->args[1]->immediate < 32) {
             p->next->args[1]->immediate += p->args[1]->immediate;
             return A_DELETE;
         }
-        if(p->args[1]->is_immed(1) && p->args[0]->type == CArgument::REGISTER) {
+        if(p->insn == I_SHL && p->args[1]->is_immed(1) && p->args[0]->type == CArgument::REGISTER) {
             delete p->args[1];
             p->args[1] = new CArgument(*p->args[0]);
             p->insn = I_ADD;

@@ -490,7 +490,9 @@ TOption options[] = {
     { 'm', "sort-moves", &do_sort_moves,           "sort `mov' insns" },
     { 'f', "remove-frame-pointer", &do_remove_fp,  "remove frame pointer" },
     { 'g', "cse", &do_the_cse,                     "common subexpression elimination" },
+    { '2', "286", &do_286,                         "allow handling of some 286 insns" },
     { '3', "386", &do_386,                         "allow handling of some 386 insns" },
+    { 'x', "extra", &do_extra_insns,               "handle extra instructions" },
     { 0, 0, 0, 0 }
 };
 
@@ -596,6 +598,10 @@ int main(int argc, char* argv[])
     }
     if(!outfile) outfile=infile;
 
+    if(do_386 && !do_286) {
+        do_386 = false;
+        cerr << "tputuner: disabling 286 instructions also disables 386 ones" << endl;
+    }
     if(do_early_jmp && !do_remunused) {
         do_early_jmp = false;
         cerr << "tputuner: early jump requires unused code removal" << endl;

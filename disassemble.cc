@@ -145,7 +145,7 @@ TRegister byte_regs[8] = { rAL, rCL, rDL, rBL, rAH, rCH, rDH, rBH };
 TRegister seg_regs[8] = { rES, rCS, rSS, rDS, rNONE, rNONE, rNONE, rNONE };
 TInsn arit_insns[8] = { I_ADD, I_OR, I_ADC, I_SBB, I_AND, I_SUB, I_XOR, I_CMP };
 TInsn shift_insns[8] = { I_ROL, I_ROR, I_RCL, I_RCR, I_SHL, I_SHR, I_SHL, I_SAR };
-TInsn F6_insns[8] = { I_INVALID, I_INVALID, I_NOT, I_NEG, I_MUL, I_IMUL, I_DIV, I_IDIV };
+TInsn F6_insns[8] = { I_TEST, I_TEST, I_NOT, I_NEG, I_MUL, I_IMUL, I_DIV, I_IDIV };
 TInsn FF_insns[8] = { I_INC, I_DEC, I_CALLN, I_CALLF, I_JMPN, I_JMPF, I_PUSH, I_INVALID };
 
 CInstruction* decode_arit(TInsn op, int opc);
@@ -183,11 +183,12 @@ CInstruction* decode_386()
 //
 //  Eine Instruktion decodieren
 //
-CInstruction* decode_one(int& opcode_ip)
+CInstruction* decode_one(int& opcode_ip, bool do_extra)
 {
     seg_ovr = rNONE;
     unsigned char opcode;
     CArgument* a;
+    CArgument* a2 = 0;
     char* relo;
     int w;
     int repeat = 0;
@@ -203,7 +204,8 @@ CInstruction* decode_one(int& opcode_ip)
         else break;
     }
 
-    if (repeat && !((opcode >= 0xA4 && opcode <= 0xA7)
+    if (repeat && !((opcode >= 0x6C && opcode <= 0x6F)
+                    || (opcode >= 0xA4 && opcode <= 0xA7)
                     || (opcode >= 0xAA && opcode <= 0xAF)))
         throw string("Invalid insn with repeat prefix");
 
@@ -231,16 +233,28 @@ CInstruction* decode_one(int& opcode_ip)
     case 3: // SBB
         if(opcode == 0x1E) return new CInstruction(I_PUSH,
                                                    new CArgument(rDS));
-        if(opcode == 0x07) return new CInstruction(I_POP,
+        if(opcode == 0x1F) return new CInstruction(I_POP,
                                                    new CArgument(rDS));
         return decode_arit(I_SBB, opcode);
     case 4: // AND
+        // 0x26: ES: (prefix) (handled above)
+        if(opcode==0x27) // DAA
+            return do_extra ? (new CInstruction(I_BCD))->set_param(opcode) : 0;
         return decode_arit(I_AND, opcode);
     case 5: // SUB
+        // 0x2E: CS: (prefix) (handled above)
+        if(opcode==0x2F) // DAS
+            return do_extra ?  (new CInstruction(I_BCD))->set_param(opcode) : 0;
         return decode_arit(I_SUB, opcode);
     case 6: // XOR
+       // 0x36: SS: (prefix) (handled above)
+        if(opcode==0x37) // AAA
+            return do_extra ? (new CInstruction(I_BCD))->set_param(opcode) : 0;
         return decode_arit(I_XOR, opcode);
     case 7: // CMP
+        // 0x3E: DS: (prefix) (handled above)
+        if(opcode==0x3F) // AAS
+            return do_extra ? (new CInstruction(I_BCD))->set_param(opcode) : 0;
         return decode_arit(I_CMP, opcode);
     case 8: // INC
         return new CInstruction(I_INC,
@@ -255,9 +269,21 @@ CInstruction* decode_one(int& opcode_ip)
     case 11: // POP
         return new CInstruction(I_POP,
                                 new CArgument(word_regs[opcode & 7]));
-    case 12: // 286/386  60..67
+    case 12: // 186/286/386  60..67
+        switch(opcode) {
+        case 0x60:
+            return do_extra ? new CInstruction(I_PUSHA) : 0;
+        case 0x61:
+            return do_extra ? new CInstruction(I_POPA) : 0;
+        // 0x62: BOUND r16,m16 (186+)
+        // 0x63: ARPL rm16,r16 (286+)
+        // 0x64: FS: (prefix) (386+)
+        // 0x65: GS: (prefix) (386+)
+        // 0x66: op32 (prefix) (386+)
+        // 0x67: addr32 (prefix) (386+)
+        }
         return 0;
-    case 13: // 286/386  68..6F
+    case 13: // 186/386  68..6F
         switch(opcode) {
         case 0x68: // PUSH iw
             return new CInstruction(I_PUSH, get_immed_word());
@@ -275,7 +301,24 @@ CInstruction* decode_one(int& opcode_ip)
                                     new CArgument(word_regs[last_reg]),
                                     a,
                                     get_immed_byte());
-        // der Rest sind Block I/O Insns
+        case 0x6C: case 0x6D:   // INS
+            if (do_extra) {
+                return (new CInstruction(I_STRING,
+                                         new CArgument(repeat, 0),
+                                         new CArgument(seg_ovr == rNONE ? rDS : seg_ovr)))
+                    ->set_param(opcode);
+            } else {
+                    return 0;
+            }
+        case 0x6E: case 0x6F:   // OUTS
+            if (do_extra) {
+                return (new CInstruction(I_STRING,
+                                         new CArgument(repeat, 0),
+                                         new CArgument(seg_ovr == rNONE ? rDS : seg_ovr)))
+                    ->set_param(opcode);
+            } else {
+                return 0;
+            }
         }
         return 0;
     case 14: // Jcc
@@ -301,7 +344,14 @@ CInstruction* decode_one(int& opcode_ip)
             return (new CInstruction(arit_insns[last_reg],
                                      a,
                                      get_immed_byte()))->set_os(2);
-            // es folgen test/xchg
+        case 0x84:
+            return do_extra ? rm_r_insn(I_TEST,byte_regs) : 0;
+        case 0x85:
+            return do_extra ? rm_r_insn(I_TEST,word_regs) : 0;
+        case 0x86:
+            return do_extra ? rm_r_insn(I_XCHG,byte_regs) : 0;
+        case 0x87:
+            return do_extra ? rm_r_insn(I_XCHG,word_regs) : 0;
         }
         return 0;
     case 17: // 88..8F
@@ -326,7 +376,7 @@ CInstruction* decode_one(int& opcode_ip)
             return (new CInstruction(I_POP, decode_mod_rm(word_regs)))->set_os(2);
         }
         return 0;
-    case 18: // XCHG AX,
+    case 18: // XCHG AX,r16
         return new CInstruction(I_XCHG,
                                 new CArgument(rAX),
                                 new CArgument(word_regs[opcode & 7]));
@@ -343,6 +393,14 @@ CInstruction* decode_one(int& opcode_ip)
             return new CInstruction(I_CALLF, new CArgument(0, new CRelo(relo)));
         case 0x9B: // WAIT
             throw string("FPU is not supported");
+        case 0x9C:
+            return do_extra ? new CInstruction(I_PUSHF) : 0;
+        case 0x9D:
+            return do_extra ? new CInstruction(I_POPF) : 0;
+        case 0x9E:
+            return do_extra ? new CInstruction(I_SAHF) : 0;
+        case 0x9F:
+            return do_extra ? new CInstruction(I_LAHF) : 0;
         }
         return 0;
     case 20: // A0..A7
@@ -364,22 +422,38 @@ CInstruction* decode_one(int& opcode_ip)
                                     disp16_arg(),
                                     new CArgument(rAX));
          case 0xA4: case 0xA5:  // MOVS
-         // case 0xA6: case 0xA7:  // CMPS
-            return (new CInstruction(I_STRING,
-                                     new CArgument(repeat, 0),
-                                     new CArgument(seg_ovr == rNONE ? rDS : seg_ovr)))
-                ->set_param(opcode);
+         case 0xA6: case 0xA7:  // CMPS
+            if (do_extra || opcode==0xA4 || opcode==0xA5) {
+                return (new CInstruction(I_STRING,
+                                         new CArgument(repeat, 0),
+                                         new CArgument(seg_ovr == rNONE ? rDS : seg_ovr)))
+                    ->set_param(opcode);
+            } else {
+                return 0;
+            }
         }
         return 0;
     case 21: // A8-AF: TEST, Stringbefehle
        switch(opcode) {
+        case 0xA8:
+           return do_extra ? new CInstruction(I_TEST,
+                                              new CArgument(rAL),
+                                              get_immed_byte()) : 0;
+        case 0xA9:
+           return do_extra ? new CInstruction(I_TEST,
+                                              new CArgument(rAX),
+                                              get_immed_word()) : 0;
         case 0xAA: case 0xAB:   // STOS
         case 0xAC: case 0xAD:   // LODS
-        // case 0xAE: case 0xAF:   // SCAS
-           return (new CInstruction(I_STRING,
-                                    new CArgument(repeat, 0),
-                                    new CArgument(seg_ovr == rNONE ? rDS : seg_ovr)))
-               ->set_param(opcode);
+        case 0xAE: case 0xAF:   // SCAS
+           if (do_extra || opcode <= 0xAD) {
+               return (new CInstruction(I_STRING,
+                                        new CArgument(repeat, 0),
+                                        new CArgument(seg_ovr == rNONE ? rDS : seg_ovr)))
+                   ->set_param(opcode);
+           } else {
+               return 0;
+           }
        }
        return 0;
     case 22: // MOV rb,ib
@@ -458,16 +532,46 @@ CInstruction* decode_one(int& opcode_ip)
             return (new CInstruction(shift_insns[last_reg],
                                      a,
                                      new CArgument(rCL)))->set_os(2); // weil os(CL) == 1
-            // es folgen AA{M,D}, SETALC, XLAT
+        case 0xD4: case 0xD5: // AAM/AAD
+            return do_extra ? (new CInstruction(I_BCD, get_immed_byte()))->set_param(opcode)->set_os(2) : 0;
+        case 0xD6:
+            return do_extra ? new CInstruction(I_SETALC) : 0;
+        case 0xD7:
+            return do_extra ? new CInstruction(I_XLAT) : 0;
         }
         return 0;
     case 27: // Copro
         throw string("FPU is not supported.");
-    case 28: // E0..E7: Schleifen, I/O
+    case 28: // E0..E7
         switch(opcode) {
+        case 0xE0: case 0xE1: case 0xE2: // LOOP[cc] disp8
+            if (do_extra) {
+                w = read_byte();
+                return (new CInstruction(I_LOOP,
+                                         new CArgument(label_at(w + ip))))
+                    ->set_param(opcode & 3);
+            } else {
+                return 0;
+            }
         case 0xE3:
             w = read_byte();
             return new CInstruction(I_JCXZ, new CArgument(label_at(w + ip)));
+        case 0xE4:
+            return do_extra ? (new CInstruction(I_IN,
+                                                new CArgument(rAL),
+                                                get_immed_byte()))->set_os(1) : 0;
+        case 0xE5:
+            return do_extra ? (new CInstruction(I_IN,
+                                                new CArgument(rAX),
+                                                get_immed_byte()))->set_os(2) : 0;
+        case 0xE6:
+            return do_extra ? (new CInstruction(I_OUT,
+                                                new CArgument(rAL),
+                                                get_immed_byte()))->set_os(1) : 0;
+        case 0xE7:
+            return do_extra ? (new CInstruction(I_OUT,
+                                                new CArgument(rAX),
+                                                get_immed_byte()))->set_os(2) : 0;
         }
         return 0;
     case 29: // E8..EF
@@ -491,31 +595,67 @@ CInstruction* decode_one(int& opcode_ip)
         case 0xEB:
             w = read_byte();
             return new CInstruction(I_JMPN, new CArgument(label_at(ip + w)));
-            // es folgt I/O
+        case 0xEC:
+            return do_extra ? (new CInstruction(I_IN,
+                                                new CArgument(rAL),
+                                                new CArgument(rDX)))->set_os(1) : 0;
+        case 0xED:
+            return do_extra ? (new CInstruction(I_IN,
+                                                new CArgument(rAX),
+                                                new CArgument(rDX)))->set_os(2) : 0;
+        case 0xEE:
+            return do_extra ? (new CInstruction(I_OUT,
+                                                new CArgument(rAL),
+                                                new CArgument(rDX)))->set_os(1) : 0;
+        case 0xEF:
+            return do_extra ? (new CInstruction(I_OUT,
+                                                new CArgument(rAX),
+                                                new CArgument(rDX)))->set_os(2) : 0;
         }
         return 0;
     case 30: // F0..F7
         switch(opcode) {
+        case 0xF0:
+            return do_extra ? new CInstruction(I_LOCK) : 0;
+        case 0xF1:
+            throw string("Direct interrupt access");
+        // 0xF2: REPNE (prefix) (handled above)
+        // 0xF3: REP (prefix) (handled above)
+        case 0xF4:
+            return do_extra ? new CInstruction(I_HLT) : 0;
+        case 0xF5: // CMC
+            return do_extra ? (new CInstruction(I_FLAG))->set_param(opcode) : 0;
         case 0xF6:
             a = decode_mod_rm(byte_regs);
-            if(F6_insns[last_reg] == I_INVALID)
-                return 0;
-            else
-                return (new CInstruction(F6_insns[last_reg], a))->set_os(1);
+            if(F6_insns[last_reg] == I_TEST) {
+                if (!do_extra) {
+                    return 0;
+                }
+                a2 = get_immed_byte();
+            }
+            return (new CInstruction(F6_insns[last_reg], a, a2))->set_os(1);
         case 0xF7:
             a = decode_mod_rm(word_regs);
-            if(F6_insns[last_reg] == I_INVALID)
-                return 0;
-            else
-                return (new CInstruction(F6_insns[last_reg], a))->set_os(2);
+            if(F6_insns[last_reg] == I_TEST) {
+                if (!do_extra) {
+                    return 0;
+                }
+                a2 = get_immed_word();
+            }
+            return (new CInstruction(F6_insns[last_reg], a, a2))->set_os(2);
         }
         return 0;
     case 31: // F8..FF
         switch(opcode) {
-         case 0xFC:
-         case 0xFD:
+        case 0xF8: case 0xF9: // CLC, STC
+        case 0xFA: case 0xFB: // CLI, STI
+        case 0xFC: case 0xFD: // CLD, STD
             /* cld, std */
-            return (new CInstruction(I_FLAG))->set_param(opcode);
+            if (do_extra || opcode == 0xFC || opcode == 0xFD) {
+                return (new CInstruction(I_FLAG))->set_param(opcode);
+            } else {
+                return 0;
+            }
         case 0xFE:
             a = decode_mod_rm(byte_regs);
             if(last_reg==0)
@@ -538,7 +678,7 @@ CInstruction* decode_one(int& opcode_ip)
 //  Eine Funktion decodieren
 //
 CInstruction* disassemble(char* acode, int code_size, int my_offset,
-                          char* _relo, int _relo_count)
+                          char* _relo, int _relo_count, bool do_extra)
 {
     CInstruction* last = 0;
     first_insn = 0;
@@ -552,7 +692,7 @@ CInstruction* disassemble(char* acode, int code_size, int my_offset,
     while(ip < max_ip) {
         int ip_save = ip;
         int ip_opcode;  // kann sich von ip_save unterscheiden wegen Präfixen
-        CInstruction* p = decode_one(ip_opcode);
+        CInstruction* p = decode_one(ip_opcode, do_extra);
         if(!p) {
             char message[100];
             sprintf(message, "Unrecognized opcode %02x!", (unsigned char)code[ip_opcode - ip_diff]);

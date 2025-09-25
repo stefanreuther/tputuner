@@ -16,6 +16,7 @@ extern bool do_peephole;     // Befehle ersetzen?
 extern bool do_remunused;    // Unbenutzten Code entfernen?
 extern bool do_dumps;        // Debug-Dumps?
 extern bool do_size;         // Auf Größe optimieren
+extern bool do_286;          // 286 code?
 extern bool do_386;          // 386er Code erlauben?
 extern bool do_early_jmp;    // Sprünge vorziehen
 extern bool do_late_jmp;     // Sprünge nach hinten ziehen
@@ -24,6 +25,7 @@ extern bool do_string_comb;  // Strings kombinieren
 extern bool do_sort_moves;   // movs sortieren
 extern bool do_the_cse;      // `CSE'
 extern bool do_remove_fp;    // remove unused frame pointers
+extern bool do_extra_insns;  // handle extra instructions
 
 class CCodeBlock;
 class CNewCode;

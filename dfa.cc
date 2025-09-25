@@ -455,15 +455,20 @@ bool flag_check(CInstruction* insn)
          case I_DEC: case I_INC: case I_ADD: case I_OR:
          case I_AND: case I_SUB:
          case I_XOR: case I_CMP: case I_IMUL:case I_MUL:
-         case I_DIV: case I_IDIV: case I_NOT: case I_NEG:
+         case I_DIV: case I_IDIV: case I_NOT: case I_NEG: case I_TEST:
             return true;
          case I_ADC:
          case I_SBB:
          case I_JCC:
          case I_SETCC:
+         case I_SETALC:
+         case I_LAHF:
+         case I_SAHF:
+         case I_BCD:
             return false;
          case I_JMPF:
          case I_JMPN:
+         case I_LOOP:
             /* better safe than sorry. Happens when CSE/early-jump
                combines two conditional blocks (ChartUsr::RecalcShip) */
             return false;
@@ -932,7 +937,7 @@ CInstruction* optimize_jcc_or_setcc(CInstruction* insn)
          case I_CMP:
          case I_NOT:
          case I_NEG:
-//      case I_TEST:
+         case I_TEST:
             /* das ist eine Arithmetik-Insn, die diesen Sprung beeinflußt */
             /* Suche alle Werte, die darauf verweisen */
             {
@@ -1106,7 +1111,8 @@ CInstruction* optimize_arit(CInstruction* insn)
                     return i;
                 }
                 break;
-             default:;
+             default:
+                break;
             } /* kein optimierbarer Befehl */
         } /* 2. Argument != 0 */
     }
@@ -1401,12 +1407,16 @@ void data_flow_analysis(CInstruction* insn)
             else
                 continue; /* insn has been replaced; retry */
             break;
+         case I_LOOP:
          case I_JCXZ:
             use_reg(rCX);
             break;
          case I_JCC:
          case I_SETCC:
             insn = optimize_jcc_or_setcc(insn);
+            break;
+         case I_SETALC:
+            set_unknown(rAL, true);
             break;
          case I_MOV:
             insn = optimize_mov(insn);
@@ -1416,6 +1426,20 @@ void data_flow_analysis(CInstruction* insn)
             break;
          case I_POP:
             optimize_pop(insn);
+            break;
+         case I_PUSHF:
+            push_value();
+            break;
+         case I_POPF:
+            delete pop_value();
+            break;
+         case I_PUSHA:
+            for(int i=0; i<8; i++)
+                push_value();
+            break;
+         case I_POPA:
+            for(int i=0; i<8; i++)
+                delete pop_value();
             break;
          case I_CMP:
             optimize_cmp(insn);
@@ -1438,6 +1462,15 @@ void data_flow_analysis(CInstruction* insn)
          case I_NOT:
          case I_NEG:
             optimize_unary(insn);
+            break;
+         case I_BCD:
+            if(insn->opsize==1) {
+                use_reg(rAL);
+                set_unknown(rAL, true);
+            } else {
+                use_reg(rAX);
+                set_unknown(rAX, true);
+            }
             break;
          case I_IMUL:
             if(insn->args[2])
@@ -1468,6 +1501,10 @@ void data_flow_analysis(CInstruction* insn)
             use_reg(rAL);
             set_unknown(rAH, true);
             break;
+         case I_XLAT:
+            use_reg(rAL);
+            use_reg(rBX);
+            break;
          case I_DIV:
          case I_IDIV:
             optimize_div(insn);
@@ -1481,6 +1518,11 @@ void data_flow_analysis(CInstruction* insn)
             break;
          case I_FLAG:
             break;
+         case I_SAHF:
+            break;
+         case I_LAHF:
+            set_unknown(rAH, true);
+            break;
          case I_STRING:
             // FIXME: do something sensible.
             use_reg(rSI);
@@ -1490,8 +1532,15 @@ void data_flow_analysis(CInstruction* insn)
             use_reg(rAX);
             set_unknown();
             break;
+         case I_IN:
+            if(insn->opsize==1)
+                set_unknown(rAL, true);
+            else
+                set_unknown(rAX, true);
+            break;
          default:
             set_unknown();
+            break;
         }
         insn = insn->next;
     }

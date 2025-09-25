@@ -27,6 +27,50 @@ int global_code_id;
    but more conservative. */
 #define REMOVE_FRAME 0
 
+CInstruction* remove_instruction(CInstruction* insn, CInstruction** ainsn0, bool forward)
+{
+    if(insn->prev)
+        insn->prev->next = insn->next;
+    else if(ainsn0)
+        *ainsn0 = insn->next;
+    if(insn->next)
+        insn->next->prev = insn->prev;
+    CInstruction* i = forward?insn->next:insn->prev;
+    delete insn;
+    changed = true;
+    return i;
+}
+
+CInstruction* insert_instruction(CInstruction* insn, CInstruction* insn1, CInstruction** ainsn0, bool after)
+{
+    if(!insn1) {
+        insn1 = *ainsn0;
+        after = false;
+    }
+    if(after) {
+        if(insn1->next) {
+            insn1->next->prev = insn;
+            insn->next = insn1->next/*->next*/;
+        } else
+            insn->next = 0;
+        insn1->next = insn;
+        insn->prev = insn1;
+    } else {
+        if(insn1->prev) {
+            insn1->prev->next = insn;
+            insn->prev = insn1->prev/*->prev*/;
+        } else {
+            insn->prev = 0;
+            if(ainsn0)
+                *ainsn0 = insn;
+        }
+        insn1->prev = insn;
+        insn->next = insn1;
+    }
+    changed = true;
+    return insn;
+}
+
 /*
  *  Remove unused code
  */
@@ -118,25 +162,18 @@ CInstruction* remove_unused_code(CInstruction* insn)
 
             /* Eintrittscode */
             while(entry_count--) {
-                insn = insn0;
-                insn0 = insn0->next;
-                delete insn;
+                remove_instruction(insn0, &insn0, true);
             }
             /* Exitcode */
             while(exit_count--) {
-                insn = prev;
-                prev = prev->prev;
-                prev->next = insn->next;
-                delete insn;
+                prev = remove_instruction(prev, &insn0, false);
             }
             /* wir setzen ein Label an den Anfang */
             /* mindestens die DFA kann den 1. Befehl einer Folge nicht */
             /* löschen - und Labels werden von der nicht gelöscht */
             insn = new CInstruction(I_LABEL);
             insn->param = 5; /* dummy: 0 wäre löschbar, 1 wäre zurück tracebar */
-            insn->next = insn0;
-            insn0 = insn;
-            changed = true;
+            insert_instruction(insn, insn0, &insn0, false);
         }
     }
 #endif
@@ -150,7 +187,7 @@ CInstruction* remove_unused_code(CInstruction* insn)
 void reduce_redundant_jumps(CInstruction* insn)
 {
     while(insn) {
-        if((insn->insn == I_JMPN || insn->insn == I_JCC || insn->insn == I_JCXZ)
+        if((insn->insn == I_JMPN || insn->insn == I_JCC || insn->insn == I_JCXZ || insn->insn == I_LOOP)
            && insn->args[0]->type==CArgument::LABEL) {
             /* it's a jump onto a label */
             while(1) {
@@ -298,8 +335,13 @@ void late_jumps(CInstruction* insn)
                  case I_XCHG:
                  case I_LEA:
                  case I_POP:
+                 case I_POPA:
                  case I_PUSH:
+                 case I_PUSHF:
+                 case I_PUSHA:
                  case I_JCC:
+                 case I_SETALC:
+                 case I_XLAT:
                     continue;
                  case I_SETCC:
                     if(do_386) continue;
@@ -323,25 +365,16 @@ void late_jumps(CInstruction* insn)
                     /* add new label */
                     label = new CInstruction(I_LABEL);
                     label->ip = there->ip;
-                    label->next = there;
-                    label->prev = there->prev;
-                    label->prev->next = label;
-                    there->prev = label;
+                    insert_instruction(label, there, 0, false);
                 }
                 /* add new jump */
                 label->inc_ref();
                 CInstruction* jump = new CInstruction(I_JCC, new CArgument(label));
                 jump->param = insn->param;
                 jump->ip = here->ip;
-                jump->next = here;
-                jump->prev = here->prev;
-                jump->prev->next = jump;
-                here->prev = jump;
+                insert_instruction(jump, here, 0, false);
                 /* delete old jump */
-                insn->prev->next = insn->next;
-                insn->next->prev = insn->prev;
-                delete insn;
-                changed = true;
+                remove_instruction(insn, 0, true);
             }
         }
         insn = next;
@@ -376,10 +409,12 @@ void early_jumps(CInstruction* insn)
                 /* find real instruction at jump target */
                 while(there && there->insn==I_LABEL)
                     there = there->prev;
-                if(!(*there == *here)) break;
+                if (there) {
+                    if(!(*there == *here)) break;
 
-                there = there->prev;
-                here = here->prev;
+                    there = there->prev;
+                    here = here->prev;
+                }
             }
 
             /* if the instructions only differ in their source operand:
@@ -427,22 +462,15 @@ void early_jumps(CInstruction* insn)
                         /* make new label */
                         label = new CInstruction(I_LABEL);
                         label->ip = there->next->ip;
-                        label->next = there->next;
-                        label->prev = there;
-                        label->next->prev = label;
-                        there->next = label;
+                        insert_instruction(label, there, 0, true);
                     }
                 } else {
                     label = there->next;
                 }
                 label->inc_ref();
-                CInstruction* jump = new CInstruction(I_JMPN,
-                                                      new CArgument(label));
-                jump->next = here->next;
-                jump->prev = here;
-                jump->next->prev = jump;
-                here->next = jump;
-                changed = true;
+                insert_instruction(new CInstruction(I_JMPN,
+                                                    new CArgument(label)),
+                                   here, 0, true);
             }
         }
 
@@ -593,6 +621,176 @@ try_remove_frame_pointer(CInstruction* p)
     return newlist;
 }
 
+/* Translate between 286 (actually, 186) and 8086 instructions */
+CInstruction* translate286(CInstruction* insn)
+{
+    make_backlinks(insn);
+    CInstruction* insn0 = insn;
+    while(insn) {
+        CInstruction* next = insn->next;
+        CInstruction* prev = insn->prev;
+        /* (usually at the beginning of a function)
+         * 286             8086
+         * ENTER x,0 <---> PUSH BP
+         *                 MOV  BP,SP
+         *                 SUB  SP,x (only if x>0)
+         *                 (shorter if x=y=0) */
+        if(do_286
+           && insn->insn==I_PUSH && insn->args[0]->is_reg(rBP)) {
+            if (next && next->insn==I_MOV && next->args[0]->is_reg(rBP) && next->args[1]->is_reg(rSP)) {
+                int entry_count = 2;
+                CInstruction* i = next->next;
+                int local_bytes = 0;
+                if(i && i->insn==I_SUB && i->args[0]->is_reg(rSP) && i->args[1]->is_immed()) {
+                    entry_count++;
+                    local_bytes = i->args[1]->immediate;
+                    i = i->next;
+                }
+                if(local_bytes) {
+                    next = i;
+                    insn = i->prev;
+                    while(entry_count) {
+                        insn = remove_instruction(insn, 0, false);
+                        entry_count--;
+                    }
+                    insert_instruction(new CInstruction(I_ENTER,
+                                                        new CArgument(local_bytes),
+                                                        new CArgument((int)0)),
+                                       next, &insn0, false);
+                }
+            }
+        } else if(insn->insn==I_ENTER
+                  && (!do_286 || (insn->args[0]->immediate==0 && insn->args[1]->immediate==0))) {
+            if(insn->args[1]->immediate==0) {
+                int local_bytes = insn->args[0]->immediate;
+                remove_instruction(insn, &insn0, true);
+                insn = insert_instruction(new CInstruction(I_PUSH,
+                                                           new CArgument(rBP)),
+                                          prev, &insn0, true);
+                insn = insert_instruction(new CInstruction(I_MOV,
+                                                           new CArgument(rBP),
+                                                           new CArgument(rSP)),
+                                          insn, &insn0, true);
+                if(local_bytes>0) {
+                    insn = insert_instruction(new CInstruction(I_SUB,
+                                                               new CArgument(rSP),
+                                                               new CArgument(local_bytes)),
+                                              insn, &insn0, true);
+                }
+            } else
+                throw string("Can't translate ENTER x,y to 8086 code if y>0");
+            /* (usually at the end of a function)
+             * 286         8086
+             * LEAVE <---> MOV SP, BP
+             *             POP BP */
+        } else if(do_286 && insn->insn==I_MOV && insn->args[0]->is_reg(rSP) && insn->args[1]->is_reg(rBP)) {
+            if(next && next->insn==I_POP && next->args[0]->is_reg(rBP)) {
+                insn = remove_instruction(insn, &insn0, true);
+                remove_instruction(insn, &insn0, true);
+                insn = insert_instruction(new CInstruction(I_LEAVE), prev, &insn0, true);
+            }
+        } else if(!do_286 && insn->insn==I_LEAVE) {
+            remove_instruction(insn, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_MOV,
+                                                       new CArgument(rSP),
+                                                       new CArgument(rBP)),
+                                      prev, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_POP,
+                                                       new CArgument(rBP)),
+                                      insn, &insn0, true);
+            /* 286            8086
+             * shift x,y ---> shift x,1
+             *                [...]     (y times)
+             *                shift x,1 */
+        } else if(!do_286 && (insn->insn == I_SHL || insn->insn == I_SHR || insn->insn == I_ROL || insn->insn == I_ROR
+                              || insn->insn == I_ROR || insn->insn == I_RCL || insn->insn == I_RCR || insn->insn == I_SAR)
+                  && insn->args[1]->is_immed() && insn->args[1]->immediate>1) {
+            int shift_count = insn->args[1]->immediate;
+            insn->args[1]->immediate = 1;
+            while(--shift_count) {
+                insn = insert_instruction(new CInstruction(insn->insn,
+                                                           new CArgument(*insn->args[0]),
+                                                           new CArgument(1)),
+                                          insn, &insn0, true);
+            }
+            /* 286         8086
+             * PUSHA <---> PUSH AX
+             *             PUSH CX
+             *             PUSH DX
+             *             PUSH BX
+             *             PUSH SP
+             *             PUSH BP
+             *             PUSH SI
+             *             PUSH DI */
+        } else if(!do_286 && insn->insn == I_PUSHA) {
+            remove_instruction(insn, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_PUSH,
+                                                       new CArgument(rAX)),
+                                      prev, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_PUSH,
+                                                       new CArgument(rCX)),
+                                      insn, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_PUSH,
+                                                       new CArgument(rDX)),
+                                      insn, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_PUSH,
+                                                       new CArgument(rBX)),
+                                      insn, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_PUSH,
+                                                       new CArgument(rSP)),
+                                      insn, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_PUSH,
+                                                       new CArgument(rBP)),
+                                      insn, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_PUSH,
+                                                       new CArgument(rSI)),
+                                      insn, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_PUSH,
+                                                       new CArgument(rDI)),
+                                      insn, &insn0, true);
+            /* 286        8086
+             * POPA <---> POP DI
+             *            POP SI
+             *            POP BP
+             *            ADD SP,2
+             *            POP BX
+             *            POP DX
+             *            POP CX
+             *            POP AX */
+        } else if(!do_286 && insn->insn == I_POPA) {
+            remove_instruction(insn, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_POP,
+                                                       new CArgument(rDI)),
+                                      prev, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_POP,
+                                                       new CArgument(rSI)),
+                                      insn, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_POP,
+                                                       new CArgument(rBP)),
+                                      insn, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_POP,
+                                                       new CArgument(rSP),
+                                                       new CArgument(2)),
+                                      insn, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_POP,
+                                                       new CArgument(rBX)),
+                                      insn, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_POP,
+                                                       new CArgument(rDX)),
+                                      insn, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_POP,
+                                                       new CArgument(rCX)),
+                                      insn, &insn0, true);
+            insn = insert_instruction(new CInstruction(I_POP,
+                                                       new CArgument(rAX)),
+                                      insn, &insn0, true);
+        }
+        insn = next;
+    }
+    return insn0;
+}
+
+
 /*
  *  Main entry of optimizer
  *
@@ -612,7 +810,7 @@ CNewCode* do_optimize(int id,
     global_code_ptr = code;
     global_code_id  = id;
     code += my_offset;
-    CInstruction* insn = disassemble(code, code_size, my_offset, relo, relo_count);
+    CInstruction* insn = disassemble(code, code_size, my_offset, relo, relo_count, do_extra_insns);
     int pass = 0;
     int exit_counter = 2;
     CCWCounter* w = 0;
@@ -624,6 +822,7 @@ CNewCode* do_optimize(int id,
         if(do_dumps)
             write_file(id, pass, insn);
         pass++;
+        insn = translate286(insn);
         if(do_the_cse)
             do_cse(insn);
         if(do_early_jmp)
