@@ -27,6 +27,8 @@ extern bool do_the_cse;      // `CSE'
 extern bool do_remove_fp;    // remove unused frame pointers
 extern bool do_extra_insns;  // handle extra instructions
 
+bool caseblind_compare(const string& a, const string& b);
+
 class CCodeBlock;
 class CNewCode;
 

@@ -73,6 +73,12 @@ Aufruf
        sind, werden sie in 8086-Befehle zerlegt, wodurch der Code größer
        werden kann.
 
+  --exclude [unit:][class.]function
+       Die angegebenen Funktionen werden nicht optimiert. Methoden müssen
+       mit dem Klassennamen angegeben werden. Um nur Funktionen aus einer
+       Unit auszuschließen, kann der Unit-Name angegeben werden. Die
+       Option kann mehrfach angegeben werden.
+
 
 Statusmeldungen
 ----------------

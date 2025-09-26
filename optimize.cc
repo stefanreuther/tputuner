@@ -22,6 +22,7 @@ bool changed;
 char* global_code_ptr;
 int global_code_id;
 string unit_name;
+std::vector<TFuncName> excluded_funcs;
 
 /* This enables an older version of stack-frame removal, which
    predates the current version. The current one is somewhat cleaner,

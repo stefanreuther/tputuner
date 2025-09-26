@@ -3,6 +3,7 @@
  *
  *  (c) copyright 1998,1999,2000 by Stefan Reuther
  */
+#include <ctype.h>
 #include "global.h"
 
 bool do_dfa = true;          // Datenflußanalyse?
@@ -21,3 +22,16 @@ bool do_sort_moves = true;   // mov sortieren
 bool do_the_cse = false;     // `cse'
 bool do_remove_fp = false;   // remove unused frame pointers
 bool do_extra_insns = false; // handle extra instructions
+
+bool caseblind_compare(const string& a, const string& b)
+{
+    if (a.size() != b.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < a.size(); ++i) {
+        if (tolower((unsigned char)a[i]) != tolower((unsigned char)b[i])) {
+            return false;
+        }
+    }
+    return true;
+}

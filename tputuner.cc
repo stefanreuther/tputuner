@@ -505,6 +505,7 @@ TOption options[] = {
     { '2', "286", &do_286,                         "allow handling of some 286 insns" },
     { '3', "386", &do_386,                         "allow handling of some 386 insns" },
     { 'x', "extra", &do_extra_insns,               "handle extra instructions" },
+    { 0  , "exclude [UNIT:]NAME", 0,               "do not optimize specified function" },
     { 0, 0, 0, 0 }
 };
 
@@ -587,11 +588,40 @@ int parse_argument(int argc, char* argv[], int argi, TValueParser value_handler)
     return n;
 }
 
+#define ISIDENT(c) ((c)=='.' || (c)=='_' || isalnum(c))
+char* read_identifier(char* p, string& name)
+{
+    name.clear();
+    char* n;
+    for(n = p; ISIDENT(*p); p++);
+    if(p>n)
+        name.assign(n, p-n);
+    return p;
+}
+
+int parse_exclude_func(int /*argc*/, char* argv[], int argi)
+{
+    char* p = argv[argi];
+    string unit;
+    string func;
+    p = read_identifier(p, func);
+    if(*p==':') {
+        unit = func;
+        p = read_identifier(++p, func);
+    }
+    if(!unit.empty() || !func.empty()) {
+        excluded_funcs.push_back(TFuncName());
+        excluded_funcs.back().unit = unit;
+        excluded_funcs.back().func = func;
+    }
+    return 1;
+}
+
 //
 // Behandelt eine long-option
 // p->Options-Wort (also "help", nicht "--help")
 //
-int handle_long_option(char* p, bool positive, char* /*next*/)
+int handle_long_option(char* p, bool positive, char* next)
 {
     int i = 0;
     if(p[0]=='n' && p[1]=='o' && p[2]=='-') {
@@ -609,6 +639,9 @@ int handle_long_option(char* p, bool positive, char* /*next*/)
             exit(1);
         }
         help();
+    } else if(strncmp(p, "exclude", l)==0 && positive) {
+        parse_argument(1, &next, 0, parse_exclude_func);
+        return i+1;
     } else {
         for(TOption* q = options; q->variable!=0; q++)
             if(q->long_name && strncmp(p, q->long_name, l)==0) {
@@ -692,6 +725,10 @@ int main(int argc, char* argv[])
     }
     if(!has_outfile) outfile=infile;
 
+    if(!do_names && !excluded_funcs.empty()) {
+        do_names = true;
+        cerr << "tputuner: excluding functions requires reading function names" << endl;
+    }
     if(do_386 && !do_286) {
         do_386 = false;
         cerr << "tputuner: disabling 286 instructions also disables 386 ones" << endl;
@@ -723,17 +760,26 @@ int main(int argc, char* argv[])
     for(list<CCodeBlock*>::iterator i=code_list.begin(); i!=code_list.end(); i++)
     {
         if((*i)->status == CCodeBlock::OK) {
-            /* nicht mehr nötig, da calls stackframe-removal ausschalten */
-/*            if((*i)->entry->flags & (INTERRUPT_PROC + CTOR_PROC + DTOR_PROC))
-                  can_remove_stackframe = false;
-              else
-                  can_remove_stackframe = true;*/
             if((*i)->entry->name.length()) {
                 cout << "Function " << (*i)->entry->name << ":" << endl;
             }
             cout << "- code block #" << hex << (*i)->id << dec
                  << "... " << flush;
-            (*i)->optimize();
+
+            bool exclude = false;
+            for (size_t n = 0; n < excluded_funcs.size(); ++n) {
+                if((excluded_funcs[n].unit.empty() || caseblind_compare(unit_name, excluded_funcs[n].unit))
+                   && (excluded_funcs[n].func.empty() || ((*i)->entry && (*i)->entry->name.length()
+                                                          && caseblind_compare(excluded_funcs[n].func, (*i)->entry->name))))
+                {
+                    exclude = true;
+                    break;
+                }
+            }
+            if(exclude)
+                cout << "excluded" << endl;
+            else
+                (*i)->optimize();
         }
     }
 

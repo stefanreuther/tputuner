@@ -68,6 +68,12 @@ Invocation
        they will be broken apart into 8086 instructions, which may result
        in larger code.
 
+  --exclude [unit:][class.]function
+       Excludes the specified function from optimization. Class methods
+       must be qualified with the class name. To exclude the function
+       only from one unit, qualify it with the unit name, separated by
+       a colon. May be used multiple times on the command line.
+
 
 Status Messages
 ----------------
