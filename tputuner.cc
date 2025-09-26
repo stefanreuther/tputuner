@@ -160,31 +160,41 @@ void CCodeBlock::optimize()
     }
 }
 
-//
-// Lädt die durch filename angegebene Datei
-//
-bool load_unit(char* filename)
+char* load_file(const char* filename, int* file_size)
 {
     FILE* fp = fopen(filename,"rb");
     if(!fp) {
         cerr << "Error: could not open file " << filename << endl;
-        return false;
+        return 0;
     }
 
     if(fseek(fp, 0, SEEK_END) != 0) {
+        fclose(fp);
         cerr << "Error: file seems not to be seekable" << endl;
-        return false;
+        return 0;
     }
-    unit_size = ftell(fp);
-    if(unit_size<0) {
+    *file_size = ftell(fp);
+    if(*file_size<0) {
+        fclose(fp);
         cerr << "Error: file seems not to be seekable" << endl;
-        return false;
+        return 0;
     }
 
-    unit = new char[unit_size];
+    unit = new char[*file_size];
     fseek(fp, 0, SEEK_SET);
-    fread(unit, 1, unit_size, fp);
+    fread(unit, 1, *file_size, fp);
     fclose(fp);
+    return unit;
+}
+
+//
+// Lädt die durch filename angegebene Datei
+//
+bool load_unit(const char* filename)
+{
+    unit = load_file(filename, &unit_size);
+    if(!unit)
+        return false;
 
     if(strncmp(unit, UNIT_ID, 9) != 0) {
         cout << "Error: not a `" UNIT_ID "' file" << endl;
@@ -329,7 +339,7 @@ void create_objects()
 /*
  *  Neue Unit schreiben
  */
-void write_new_file(char* name)
+void write_new_file(const char* name)
 {
     int code_size = 0;                              // Gesamtgröße Code
     int codeblock_base = get_word(OFS_CODE_BLOCKS); // Position der Codeblocks
@@ -501,6 +511,7 @@ TOption options[] = {
 void help()
 {
     cout << "Stefan's TPU Tuner - (c) copyright 1998,1999,2000,2002 by Stefan Reuther" << endl
+         << "  (modified by Joe Forster/STA, 2013-2025)" << endl
          << endl
          << "Usage: tputuner [-options] file.in [file.out]" << endl
          << endl
@@ -508,40 +519,103 @@ void help()
          << "file.out is the output file name (if different from file.in)" << endl
          << endl
          << "Options specify which optimizations to perform. Use an upper-case letter" << endl
-         << "(short options) or add `no-' (long options) to turn them off." << endl
+         << "(short options) or prepend `no-' (long options) or append a hyphen or start" << endl
+         << "with plus signs instead of hyphens to turn them off." << endl
          << endl;
-    for(TOption* p = options; p->letter!=0; p++) {
-        cout << "-" << p->letter << "   --" << p->long_name;
+    for(TOption* p = options; p->desc; p++) {
+        if(p->letter)
+            cout << "-" << p->letter;
+        else
+            cout << "  ";
+        cout << "   --" << p->long_name;
         for(int i=strlen(p->long_name); i<25; i++) cout << " ";
-        if(*(p->variable)) cout << "[on] "; else cout << "[off]";
+        if (p->variable) {
+            if(*(p->variable)) cout << "[on] "; else cout << "[off]";
+        } else {
+            cout << "     ";
+        }
         cout << "  " << p->desc << endl;
     }
     exit(0);
+}
+
+#define ISEOL(c) (isspace(c) && !isblank(c))
+int tokenize_buffer(char*** atokens, char* buf, size_t buf_size)
+{
+    int token_num = 0;
+    char** tokens = 0;
+    char* bufend = buf + buf_size;
+    char* token;
+    char* p;
+    for(token = buf; token<bufend; token = p) {
+        if(*token=='#') {
+            for(p = token; p<bufend && !ISEOL(*p); p++);
+            for(; p<bufend && ISEOL(*p); p++);
+        } else {
+            for(; token<bufend && isspace(*token); token++);
+            for(p = token; p<bufend && !isspace(*p); p++);
+            *p++ = 0;
+            for(; p<bufend && isspace(*p); p++);
+            if(p>token) {
+                tokens = (char**)realloc(tokens, (token_num+1) * sizeof(char*));
+                tokens[token_num++] = token;
+            }
+        }
+    };
+    *atokens = tokens;
+    return token_num;
+}
+
+typedef int (*TValueParser)(int, char**, int);
+int parse_argument(int argc, char* argv[], int argi, TValueParser value_handler)
+{
+    int n = 0;
+    char* p = argv[argi];
+    if(p[0] == '@') {
+        int buf_size;
+        char* buf = load_file(p+1, &buf_size);
+        if(buf) {
+            char** tokens;
+            int token_num = tokenize_buffer(&tokens, buf, buf_size);
+            for(int i = 0; i<token_num; i++)
+                i += parse_argument(token_num, tokens, i, value_handler);
+            free(tokens);
+            delete[] buf;
+        }
+    } else
+        n = value_handler(argc, argv, argi);
+    return n;
 }
 
 //
 // Behandelt eine long-option
 // p->Options-Wort (also "help", nicht "--help")
 //
-void handle_long_option(char* p)
+int handle_long_option(char* p, bool positive, char* /*next*/)
 {
-    bool positive = true;
+    int i = 0;
     if(p[0]=='n' && p[1]=='o' && p[2]=='-') {
-        positive = false;
+        positive = !positive;
         p += 3;
     }
-    if(strcmp(p, "help")==0) {
+    int l = strlen(p);
+    if(l>0 && p[l-1] == '-') {
+        positive = !positive;
+        l--;
+    }
+    if(strncmp(p, "help", l)==0) {
         if(!positive) {
             cerr << "What do you mean with `no help'?" << endl;
             exit(1);
         }
         help();
+    } else {
+        for(TOption* q = options; q->variable!=0; q++)
+            if(q->long_name && strncmp(p, q->long_name, l)==0) {
+                *(q->variable) = positive;
+                return i;
+            }
     }
-    for(TOption* q = options; q->letter!=0; q++)
-        if(strcmp(p, q->long_name)==0) {
-            *(q->variable) = positive;
-            return;
-        }
     cerr << "tputuner: Invalid option: --" << p << endl;
     exit(1);
 }
@@ -549,17 +623,26 @@ void handle_long_option(char* p)
 //
 // Kurze Option behandeln
 //
-void handle_short_option(char c)
+int handle_short_option(char* p, bool positive)
 {
-    for(TOption* q = options; q->letter!=0; q++) {
-        if(q->letter == c) {
-            *(q->variable) = true;
-            return;
+    int i = 0;
+    char c = *p;
+    if(c) {
+        i++;
+        if(p[i]=='-') {
+            positive = !positive;
+            i++;
         }
-        if(toupper(q->letter) == c) {
-            *(q->variable) = false;
-            return;
+    }
+    for(TOption* q = options; q->variable; q++) {
+        if(q->letter != c) {
+            if(toupper(q->letter) == c)
+                positive = !positive;
+            else
+                continue;
         }
+        *(q->variable) = positive;
+        return i;
     }
     cerr << "tputuner: Invalid option: -";
     if(c) cerr << c;
@@ -567,38 +650,47 @@ void handle_short_option(char c)
     exit(1);
 }
 
-int main(int argc, char* argv[])
-{
-    char* infile = 0;
-    char* outfile = 0;
+string infile;
+string outfile;
+bool has_infile, has_outfile;
 
-    /* Options-Parser */
-    for(int i = 1; i<argc; i++) {
-        if(argv[i][0] == '-') {
-            char* p = argv[i]+1;
-            if(*p == '-') {
-                /* long option */
-                handle_long_option(p+1);
-            } else {
-                /* short option */
-                do handle_short_option(*p++); while(*p);
-            }
+int parse_option(int argc, char* argv[], int argi)
+{
+    int n = 0;
+    bool positive;
+    char* p = argv[argi];
+    if((positive = p[0] == '-') || p[0] == '+') {
+        char* next = (argi+1<argc)?argv[argi+1]:0;
+        p++;
+        if(*p == p[-1]) {
+            /* long option */
+            n = handle_long_option(++p, positive, next);
         } else {
-            if(infile==0) infile=argv[i];
-            else if(outfile==0) outfile=argv[i];
-            else {
-                cerr << "tputuner: too many file names specified" << endl;
-                exit(1);
-            }
+            /* short option */
+            do p += handle_short_option(p, positive); while(*p);
+        }
+    } else {
+        if(!has_infile) { infile=p; has_infile=true; }
+        else if(!has_outfile) { outfile=p; has_outfile=true; }
+        else {
+            cerr << "tputuner: too many file names specified" << endl;
+            exit(1);
         }
     }
+    return n;
+}
 
-    if(!infile) {
+int main(int argc, char* argv[])
+{
+    for(int i=1; i<argc; i++)
+        i += parse_argument(argc, argv, i, parse_option);
+
+    if(!has_infile) {
         cerr << "tputuner: You did not specify a file name" << endl
              << "Type `tputuner --help' for help." << endl;
         exit(1);
     }
-    if(!outfile) outfile=infile;
+    if(!has_outfile) outfile=infile;
 
     if(do_386 && !do_286) {
         do_386 = false;
@@ -619,7 +711,7 @@ int main(int argc, char* argv[])
 
     /* und action! */
     cout << "loading unit..." << endl;
-    if(!load_unit(infile)) return 1;
+    if(!load_unit(infile.c_str())) return 1;
     cout << "Unit " << unit_name << endl;
 
     cout << "analyzing headers..." << endl;
@@ -651,5 +743,5 @@ int main(int argc, char* argv[])
     }
 
     cout << "writing new file..." << endl;
-    write_new_file(outfile);
+    write_new_file(outfile.c_str());
 }
