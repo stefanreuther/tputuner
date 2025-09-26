@@ -496,6 +496,10 @@ TRegister find_reg_with_value(CArgument* arg)
 CInstruction* optimize_mov(CInstruction* insn)
 {
     if(insn->args[0]->is_word_reg()) {
+        /* if SP is modified, the stack falls into an unknown state, */
+        /* remove everything from it */
+        if(insn->args[0]->is_reg(rSP))
+            while(pop_value());
         if(insn->args[1]->is_word_reg()) {
             /*
              * mov reg,reg

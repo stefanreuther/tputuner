@@ -265,7 +265,8 @@ void read_hash_branch(int ofs, string prefix)
  */
 void read_hashtable(int hash_ofs, string prefix)
 {
-    int hash_size = get_word(hash_ofs) / 2;
+    // the hash table is 2 bytes longer than indicated by the size descriptor
+    int hash_size = (get_word(hash_ofs) + 2) / 2;
 
     for(int i=1; i<=hash_size; i++)
         read_hash_branch(get_word(hash_ofs + 2*i), prefix);
