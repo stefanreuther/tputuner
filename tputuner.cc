@@ -540,7 +540,7 @@ void help()
     exit(0);
 }
 
-#define ISEOL(c) (isspace(c) && !isblank(c))
+#define ISEOL(c) (c == '\r' || c == '\n' || c == '\v')
 int tokenize_buffer(char*** atokens, char* buf, size_t buf_size)
 {
     int token_num = 0;
@@ -591,7 +591,7 @@ int parse_argument(int argc, char* argv[], int argi, TValueParser value_handler)
 #define ISIDENT(c) ((c)=='.' || (c)=='_' || isalnum(c))
 char* read_identifier(char* p, string& name)
 {
-    name.clear();
+    name = "";
     char* n;
     for(n = p; ISIDENT(*p); p++);
     if(p>n)
