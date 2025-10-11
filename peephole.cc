@@ -104,8 +104,8 @@ TAction check_jump(CInstruction* p)
     } else if(p->next->insn == I_JCC) {
         CInstruction* n = p->next;
 
-        /* Zwei Sprnge. Wenn der zweite immer dann springt, wenn
-           der erste das auch tut -> lsche zweiten */
+        /* Zwei Sprünge. Wenn der zweite immer dann springt, wenn
+           der erste das auch tut -> lösche zweiten */
         int fst = jmp_char[p->param];
         int snd = jmp_char[n->param];
         if (fst == IF_NONEQUAL)
@@ -120,7 +120,7 @@ TAction check_jump(CInstruction* p)
         }
 
         if (*p->args[0] == *n->args[0]) {
-            /* Zwei Sprnge zum selben Ziel */
+            /* Zwei Sprünge zum selben Ziel */
             /* probiere, einen Sprung zu synthetisieren, der
                beides auf einmal kann */
             int when = jmp_char[p->param] | jmp_char[n->param];

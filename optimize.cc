@@ -153,7 +153,7 @@ CInstruction* remove_unused_code(CInstruction* insn)
             else if(prev->insn == I_POP && prev->args[0]->is_reg(rBP)) {
                 insn = prev->prev;
                 if(insn->insn == I_MOV && insn->args[0]->is_reg(rSP)
-                   && insn->args[0]->is_reg(rBP))
+                   && insn->args[1]->is_reg(rBP))
                     /* mov sp,bp / pop bp */
                     exit_count = 2;
             }
